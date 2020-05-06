@@ -14,3 +14,13 @@
 # Input Pipeline Repo
 * [Minifold](https://github.com/EricAlcaide/MiniFold)
 * [ProSPR](https://github.com/dellacortelab/prospr); [Reference Paper](https://www.biorxiv.org/content/10.1101/830273v2.full.pdf)
+
+# Libraries
+* [Keras](https://keras.io/getting-started/functional-api-guide/)
+* [Tensorflow](https://www.tensorflow.org/tutorials/quickstart/beginner)
+* [pytorch](https://pytorch.org/tutorials/)
+
+# Additional Resources 
+* [Protein Folding](https://en.wikipedia.org/wiki/Protein_folding)
+* [Multiple Sequence Alignment (MSA)](https://en.wikipedia.org/wiki/Multiple_sequence_alignment)
+
