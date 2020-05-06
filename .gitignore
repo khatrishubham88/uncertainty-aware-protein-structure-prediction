@@ -1,1 +1,4 @@
 # this is a gitignore add the files/folders you wanna ignore
+venv/*
+*.pyc
+__pycache__/*
