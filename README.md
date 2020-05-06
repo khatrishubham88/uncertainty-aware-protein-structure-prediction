@@ -7,7 +7,9 @@
 
 
 # Model Repos
+* [AlphaFold](https://github.com/deepmind/deepmind-research/tree/7bb484fffa87d3486ac791bb98b5b3dd65d8264e/alphafold_casp13)
 * [ProSPR](https://github.com/dellacortelab/prospr); [Reference Paper](https://www.biorxiv.org/content/10.1101/830273v2.full.pdf)
+
 
 # Input Pipeline Repo
 * [Minifold](https://github.com/EricAlcaide/MiniFold)
