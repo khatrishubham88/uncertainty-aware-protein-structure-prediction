@@ -23,4 +23,5 @@
 # Additional Resources 
 * [Protein Folding](https://en.wikipedia.org/wiki/Protein_folding)
 * [Multiple Sequence Alignment (MSA)](https://en.wikipedia.org/wiki/Multiple_sequence_alignment)
-
+* CASP: [Wiki](https://en.wikipedia.org/wiki/CASP); [Other (Not sure how good)](http://predictioncenter.org/casp13/)
+* [PDB](https://www.rcsb.org/)
