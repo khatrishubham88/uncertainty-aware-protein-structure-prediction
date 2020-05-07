@@ -15,6 +15,10 @@
 * [Minifold](https://github.com/EricAlcaide/MiniFold)
 * [ProSPR](https://github.com/dellacortelab/prospr); [Reference Paper](https://www.biorxiv.org/content/10.1101/830273v2.full.pdf)
 
+# Features 
+* Sequence
+* [PSSM](https://www.ncbi.nlm.nih.gov/Class/Structure/pssm/pssm_viewer.cgi)
+
 # Libraries
 * [Keras](https://keras.io/getting-started/functional-api-guide/)
 * [Tensorflow](https://www.tensorflow.org/tutorials/quickstart/beginner)
