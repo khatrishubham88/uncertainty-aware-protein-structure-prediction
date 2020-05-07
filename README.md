@@ -26,3 +26,5 @@
 * CASP: [Wiki](https://en.wikipedia.org/wiki/CASP); [Other (Not sure how good)](http://predictioncenter.org/casp13/)
 * [PDB](https://www.rcsb.org/)
 * [AlphaFold Talk](https://www.youtube.com/watch?v=uQ1uVbrIv-Q)
+* [AlphaFold presentation](http://predictioncenter.org/casp13/doc/presentations/Pred_CASP13-DeepLearning-AlphaFold-Senior.pdf)
+
