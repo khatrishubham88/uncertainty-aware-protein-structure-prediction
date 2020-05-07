@@ -25,3 +25,4 @@
 * [Multiple Sequence Alignment (MSA)](https://en.wikipedia.org/wiki/Multiple_sequence_alignment)
 * CASP: [Wiki](https://en.wikipedia.org/wiki/CASP); [Other (Not sure how good)](http://predictioncenter.org/casp13/)
 * [PDB](https://www.rcsb.org/)
+* [AlphaFold presentation](http://predictioncenter.org/casp13/doc/presentations/Pred_CASP13-DeepLearning-AlphaFold-Senior.pdf)
