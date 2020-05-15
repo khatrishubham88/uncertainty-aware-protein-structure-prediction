@@ -4,14 +4,37 @@ import numpy as np
 
 NUM_AAS = 20
 NUM_DIMENSIONS = 3
+NUM_EVO_ENTRIES = 21
 
 
-def parse_one_tfrecord(serialized_input, num_evo_entries=21):
+def masking_matrix(input_mask):
+    """ Constructs a masking matrix to zero out pairwise distances due to missing residues or padding.
+    Args:
+        mask: 0/1 vector indicating whether a position should be masked (0) or not (1)
+    Returns:
+        A square matrix with all 1s except for rows and cols whose corresponding indices in mask are set to 0.
+        [SEQ_LENGTH, SEQ_LENGTH]
+    """
+
+    mask = tf.convert_to_tensor(input_mask, name='mask')
+
+    #print(tf.size(mask)) #--> Tensor("Size_2:0", shape=(), dtype=int32)
+    mask = tf.expand_dims(mask, axis= 0) #--> this operation inserts a dimension of size 1 at the dimension index axis
+    #print(tf.size(mask)) #--> Tensor("Size_3:0", shape=(), dtype=int32)
+    base = tf.ones([tf.size(mask), tf.size(mask)])
+
+    matrix_mask = base * mask * tf.transpose(mask)
+
+    return matrix_mask
+
+
+
+def parse_tfexample(serialized_input):
     context, features = tf.io.parse_single_sequence_example(serialized_input,
                             context_features={'id': tf.io.FixedLenFeature((1,), tf.string)},
                             sequence_features={
                                     'primary':      tf.io.FixedLenSequenceFeature((1,),               tf.int64),
-                                    'evolutionary': tf.io.FixedLenSequenceFeature((num_evo_entries,), tf.float32, allow_missing=True),
+                                    'evolutionary': tf.io.FixedLenSequenceFeature((NUM_EVO_ENTRIES,), tf.float32, allow_missing=True),
                                     'secondary':    tf.io.FixedLenSequenceFeature((1,),               tf.int64,   allow_missing=True),
                                     'tertiary':     tf.io.FixedLenSequenceFeature((NUM_DIMENSIONS,),  tf.float32, allow_missing=True),
                                     'mask':         tf.io.FixedLenSequenceFeature((1,),               tf.float32, allow_missing=True)})
@@ -24,19 +47,27 @@ def parse_one_tfrecord(serialized_input, num_evo_entries=21):
     mask =                  features['mask'][:, 0]
 
     pri_length = tf.size(primary)
+    # Generate tertiary masking matrix--if mask is missing then assume all residues are present
+    mask = tf.cond(tf.not_equal(tf.size(mask), 0), lambda: mask, lambda: tf.ones([pri_length]))
+    ter_mask = masking_matrix(mask)
+    return primary, evolutionary, tertiary, ter_mask
 
-    return id_, primary, evolutionary, secondary, tertiary, pri_length
 
-
-def parse_dataset(file_paths, num_evo_entries=21):
+def parse_dataset(file_paths):
     """ This function iterates over all input files
     and extract record information from each single file"""
-    tfrecord_dataset = tf.data.TFRecordDataset(file_paths)
-    for raw_example in iter(tfrecord_dataset):
-        id_, primary, evolutionary, secondary, tertiary, pri_length = parse_one_tfrecord(raw_example, num_evo_entries=21)
-        print(tertiary)
-        widen_seq(primary)
+    raw_dataset = tf.data.TFRecordDataset(file_paths)
+    raw_dataset = raw_dataset.map(lambda raw: parse_tfexample(raw))
+    #raw_dataset.create_batch(batch_size, crop_size) --> at this call the cropping should be done
+    for data in raw_dataset:
+        print(data)
         break
+    #for raw_example in iter(tfrecord_dataset):
+    #    id_, primary, evolutionary, secondary, tertiary, pri_length, ter_mask = parse_one_tfrecord(raw_example, num_evo_entries=21)
+        #tf.map to create batches
+    #    print(ter_mask)
+        #widen_seq(primary)
+    #    break
 
 def widen_seq(seq):
     """
