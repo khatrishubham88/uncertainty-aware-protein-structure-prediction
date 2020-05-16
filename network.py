@@ -1,6 +1,14 @@
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Conv2DTranspose, Input
 
+"""
+To-Do List:
+1. Implement DropOut.
+2. Test the model output on data from Kaggle.
+3. Implement weighted categorical crossentropy loss.
+4. Weight initialization.
+5. Look into position-specific bias mentioned in DeepMind paper.
+"""
 
 class ResNet:
     def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, crop_size=64,
@@ -27,7 +35,7 @@ class ResNet:
         for layer in first_layers:
             x = layer(x)
 
-        # Concatenate sets of variable number of ResNet blocks
+        # Concatenate sets containing variable number of ResNet blocks
         for idx, num_set_blocks in enumerate(self.num_blocks):
             for block_num in range(num_set_blocks):
                 identity = x
@@ -82,21 +90,21 @@ class ResNet:
         # Project down
         layers.append(BatchNormalization(name='batch_norm_down_' + str(set_block) + '_' + str(block_num)))
         layers.append(Activation(activation=self.non_linearity,
-                                 name='non_linearity_down' + str(set_block) + '_' + str(block_num)))
+                                 name='non_linearity_down_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2D(filters=num_filters//2, kernel_size=1, strides=stride, padding='same',
                              name='conv_down_' + str(set_block) + '_' + str(block_num)))
 
         # Strided convolution
         layers.append(BatchNormalization(name='batch_norm_conv_' + str(set_block) + '_' + str(block_num)))
         layers.append(Activation(activation=self.non_linearity,
-                                 name='non_linearity_conv' + str(set_block) + '_' + str(block_num)))
+                                 name='non_linearity_conv_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2D(filters=num_filters//2, kernel_size=kernel_size, strides=stride, padding='same',
                              dilation_rate=atou_rate, name='conv_dil_' + str(set_block) + '_' + str(block_num)))
 
         # Project up
         layers.append(BatchNormalization(name='batch_norm_up_' + str(set_block) + '_' + str(block_num)))
         layers.append(Activation(activation=self.non_linearity,
-                                 name='non_linearity_up' + str(set_block) + '_' + str(block_num)))
+                                 name='non_linearity_up_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2DTranspose(filters=num_filters, kernel_size=1, strides=stride, padding='same',
                                       name='conv_up_' + str(set_block) + '_' + str(block_num)))
 
