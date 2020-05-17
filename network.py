@@ -1,18 +1,18 @@
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Conv2DTranspose, Input
+from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Conv2DTranspose, Input, Dropout
 
 """
 To-Do List:
-1. Implement DropOut.
+1. Implement DropOut (done: implemented before each add layer [M.])
 2. Test the model output on data from Kaggle.
-3. Implement weighted categorical crossentropy loss.
+3. Implement weighted categorical cross-entropy loss.
 4. Weight initialization.
 5. Look into position-specific bias mentioned in DeepMind paper.
 """
 
 class ResNet:
     def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, crop_size=64,
-                 non_linearity='elu'):
+                 non_linearity='elu', keep_prob=1.0):
         super(ResNet, self).__init__()
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
@@ -24,6 +24,7 @@ class ResNet:
         self.num_channels = num_channels
         self.dilation = dilation
         self.non_linearity = non_linearity
+        self.keep_prob = keep_prob
 
     def model(self):
         # Create the input layer
@@ -44,6 +45,8 @@ class ResNet:
                                                   block_num=block_num, kernel_size=3)
                 for layer in layers_resnet:
                     x = layer(x)
+                if self.keep_prob < 1.0:
+                    x = Dropout(rate=self.keep_prob, name='dropout_' + str(idx) + '_' + str(block_num))(x)
                 x = add([x, identity], name='add_' + str(idx) + '_' + str(block_num))
 
                 if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
@@ -60,6 +63,8 @@ class ResNet:
                         x = self.make_layer()[0](x)
 
         out = x
+        # Here we need to implement a Softmax layer.
+
         distance_pred_resnet = Model(inputs, out, name='AlphaFold_Distance_Prediction_Model')
 
         return distance_pred_resnet
@@ -112,6 +117,7 @@ class ResNet:
 
 
 if __name__ == "__main__":
-    nn = ResNet(input_channels=128, output_channels=64, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8])
+    nn = ResNet(input_channels=128, output_channels=64, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
+                keep_prob=0.15)
     model = nn.model()
     model.summary()
