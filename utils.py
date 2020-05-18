@@ -1,5 +1,6 @@
+import math
+import itertools
 import tensorflow as tf
-<<<<<<< HEAD
 import tensorflow.keras.backend as K
 
 
@@ -7,18 +8,6 @@ def mask_2d_to_3d(masks_2d):
     mask_3d = K.stack(masks_2d, axis=0)
 
     return mask_3d
-
-
-if __name__ == "__main__":
-
-    masks_2d = [K.random_uniform(shape=(64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32),
-                K.random_uniform(shape=(64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32),
-                K.random_uniform(shape=(64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32)]
-
-    mask_3d = mask_2d_to_3d(masks_2d)
-=======
-import math
-import itertools
 
 
 """Calculates the distance between two AA
@@ -77,4 +66,4 @@ def calc_pairwise_distances(tertiary):
         distance_matrix.append(dist)
 
     return (tf.convert_to_tensor(distance_matrix))
->>>>>>> 97b4fe690455ace5969da05c631850078295d821
+
