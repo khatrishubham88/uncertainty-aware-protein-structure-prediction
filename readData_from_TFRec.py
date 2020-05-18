@@ -123,7 +123,7 @@ def widen_pssm(pssm, seq):
 
 if __name__ == '__main__':
     # add your test flag here and put it below
-    tfrecords_path = '../proteinnet/data/casp7/training/100/1'
+    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
     # test function for the optimized function
     for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
-        pass
+        print(widen_seq(primary))
