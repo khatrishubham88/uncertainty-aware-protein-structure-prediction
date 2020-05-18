@@ -1,17 +1,17 @@
-import os
-import numpy as np
 import tensorflow as tf
+import tensorflow.keras.backend as K
 
 
-def calc_pairwise_distances(chain_a, chain_b, use_gpu):
-    distance_matrix = torch.Tensor(chain_a.size()[0], chain_b.size()[0]).type(torch.float)
-    # add small epsilon to avoid boundary issues
-    epsilon = 10 ** (-4) * torch.ones(chain_a.size(0), chain_b.size(0))
-    if use_gpu:
-        distance_matrix = distance_matrix.cuda()
-        epsilon = epsilon.cuda()
+def mask_2d_to_3d(masks_2d):
+    mask_3d = K.stack(masks_2d, axis=0)
 
-    for idx, row in enumerate(chain_a.split(1)):
-        distance_matrix[idx] = torch.sum((row.expand_as(chain_b) - chain_b) ** 2, 1).view(1, -1)
+    return mask_3d
 
-    return torch.sqrt(distance_matrix + epsilon)
+
+if __name__ == "__main__":
+
+    masks_2d = [K.random_uniform(shape=(64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32),
+                K.random_uniform(shape=(64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32),
+                K.random_uniform(shape=(64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32)]
+
+    mask_3d = mask_2d_to_3d(masks_2d)
