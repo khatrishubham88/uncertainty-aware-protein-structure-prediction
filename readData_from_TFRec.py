@@ -3,8 +3,8 @@ import tensorflow as tf
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 import itertools
-from tqdm import tqdm
-import time
+from utils import calc_pairwise_distances
+
 
 NUM_AAS = 20
 NUM_DIMENSIONS = 3
@@ -57,28 +57,17 @@ def parse_tfexample(serialized_input):
     return primary, evolutionary, tertiary, ter_mask
 
 
+
 def parse_dataset(file_paths):
-    """ This function iterates over all input files
-    and extract record information from each single file"""
+    """
+    This function iterates over all input files
+    and extract record information from each single file
+    Use Yield for optimization purpose causes reading when needed
+    """
+
     raw_dataset = tf.data.TFRecordDataset(file_paths)
-    print(type(raw_dataset))
     for data in raw_dataset:
         yield parse_tfexample(data)
-
-def widen_seq_unoptimized(seq):
-    key = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
-    tensor = []
-    for i in range(len(seq)):
-        d2 = []
-        for j in range(len(seq)):
-            # calculating on-hot for one amino acid
-            d1 = [1 if (key[x] == seq[i] and key[x] == seq[j]) else 0 for x in range(NUM_AAS)]
-            d2.append(d1)
-        tensor.append(d2)
-
-    # print(np.array(tensor))
-    # print(np.array(tensor).shape)
-    return np.array(tensor)  # (LxLx20)
 
 def widen_seq(seq):
     """
@@ -133,26 +122,8 @@ def widen_pssm(pssm, seq):
     return np.array(tensor)
 
 if __name__ == '__main__':
-
+    # add your test flag here and put it below
     tfrecords_path = '../proteinnet/data/casp7/training/100/1'
     # test function for the optimized function
-    for primary, evolutionary, tertiary, ter_mask in tqdm(parse_dataset(tfrecords_path)):
-        # doing this to make test faster
-        if primary.shape[0]<100:
-            print("Running for shape = %d"%(primary.shape[0]))
-            start = time.time()
-            wide_seq = widen_seq(primary)
-            total = time.time() - start
-            proto_seq = tf.make_tensor_proto(wide_seq)
-            numpy_seq = tf.make_ndarray(proto_seq)
-            print("Done new version in %f sec"%(total))
-            start = time.time()
-            old_seq = widen_seq_unoptimized(primary)
-            total = time.time() - start
-            print("Done old version in %f sec"%(total))
-            # important otherwise it can cause the difference due to machine precision
-            numpy_seq.astype(old_seq.dtype)
-            # compare if two array return same value
-            print("is same = "+str((numpy_seq==old_seq).all()))
-        else:
-            continue
+    for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
+        pass
