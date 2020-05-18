@@ -99,10 +99,8 @@ class ResNet:
 
         # Project down
         layers.append(BatchNormalization(name='batch_norm_down_' + str(set_block) + '_' + str(block_num)))
-        layers.append(Activation(activation=self.non_linearity,
-                                 name='non_linearity_down_' + str(set_block) + '_' + str(block_num)))
-        layers.append(Conv2D(filters=num_filters//2, kernel_size=1, strides=stride, padding='same',
-                             name='conv_down_' + str(set_block) + '_' + str(block_num)))
+        layers.append(Activation(activation=self.non_linearity, name='non_linearity_down_' + str(set_block) + '_' + str(block_num)))
+        layers.append(Conv2D(filters=num_filters//2, kernel_size=1, strides=stride, padding='same', name='conv_down_' + str(set_block) + '_' + str(block_num)))
 
         # Strided convolution
         layers.append(BatchNormalization(name='batch_norm_conv_' + str(set_block) + '_' + str(block_num)))

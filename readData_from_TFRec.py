@@ -135,4 +135,5 @@ if __name__ == '__main__':
     tfrecords_path = '../proteinnet/data/casp7/training/100/1'
     # test function for the optimized function
     for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
+        print(ter_mask)
         pass

@@ -16,7 +16,7 @@
 * [Minifold](https://github.com/EricAlcaide/MiniFold)
 * [ProSPR](https://github.com/dellacortelab/prospr); [Reference Paper](https://www.biorxiv.org/content/10.1101/830273v2.full.pdf)
 * [Open Protein](https://github.com/biolib/openprotein)
-* [AlphaFold Pytorch](https://github.com/Urinx/alphafold_pytorch)
+* [AlphaFold Pytorch (cropping here)](https://github.com/Urinx/alphafold_pytorch)
 
 # Features 
 * Sequence
