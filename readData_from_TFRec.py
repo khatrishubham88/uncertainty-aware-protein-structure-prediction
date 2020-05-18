@@ -1,6 +1,10 @@
 import os
 import tensorflow as tf
 import numpy as np
+from sklearn.preprocessing import OneHotEncoder
+import itertools
+from tqdm import tqdm
+import time
 
 NUM_AAS = 20
 NUM_DIMENSIONS = 3
@@ -40,11 +44,11 @@ def parse_tfexample(serialized_input):
                                     'mask':         tf.io.FixedLenSequenceFeature((1,),               tf.float32, allow_missing=True)})
 
     id_ = context['id'][0]
-    primary =   tf.dtypes.cast(features['primary'][:, 0], tf.int32)
-    evolutionary =          features['evolutionary']
+    primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
+    evolutionary = features['evolutionary']
     secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
-    tertiary =              features['tertiary']
-    mask =                  features['mask'][:, 0]
+    tertiary = features['tertiary']
+    mask = features['mask'][:, 0]
 
     pri_length = tf.size(primary)
     # Generate tertiary masking matrix--if mask is missing then assume all residues are present
@@ -57,17 +61,24 @@ def parse_dataset(file_paths):
     """ This function iterates over all input files
     and extract record information from each single file"""
     raw_dataset = tf.data.TFRecordDataset(file_paths)
-    raw_dataset = raw_dataset.map(lambda raw: parse_tfexample(raw))
-    #raw_dataset.create_batch(batch_size, crop_size) --> at this call the cropping should be done
+    print(type(raw_dataset))
     for data in raw_dataset:
-        print(data)
-        break
-    #for raw_example in iter(tfrecord_dataset):
-    #    id_, primary, evolutionary, secondary, tertiary, pri_length, ter_mask = parse_one_tfrecord(raw_example, num_evo_entries=21)
-        #tf.map to create batches
-    #    print(ter_mask)
-        #widen_seq(primary)
-    #    break
+        yield parse_tfexample(data)
+
+def widen_seq_unoptimized(seq):
+    key = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    tensor = []
+    for i in range(len(seq)):
+        d2 = []
+        for j in range(len(seq)):
+            # calculating on-hot for one amino acid
+            d1 = [1 if (key[x] == seq[i] and key[x] == seq[j]) else 0 for x in range(NUM_AAS)]
+            d2.append(d1)
+        tensor.append(d2)
+
+    # print(np.array(tensor))
+    # print(np.array(tensor).shape)
+    return np.array(tensor)  # (LxLx20)
 
 def widen_seq(seq):
     """
@@ -75,21 +86,21 @@ def widen_seq(seq):
      'K': '8', 'L': '9', 'M': '10', 'N': '11', 'P': '12', 'Q': '13', 'R': '14', 'S': '15', 'T': '16', 'V': '17', 'W': '18', 'Y': '19'}
     """
     """ Converts a seq into a one-hot tensor. Not LxN but LxLxN"""
-    key = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-    tensor = []
-    for i in range(len(seq)):
-        d2 = []
-        for j in range(len(seq)):
-            # calculating on-hot for one amino acid
-            d1 = [1 if (j<len(seq) and i<len(seq) and key[x] == seq[i] and key[x] == seq[j])
-                else 0 for x in range(NUM_AAS)]
+    L = seq.shape[0]
+    N = 20
+    key = np.arange(start=0,stop=N,step=1)
+    wide_tensor = np.zeros(shape=(L,L,N))
+    proto_seq = tf.make_tensor_proto(seq)
+    numpy_seq = tf.make_ndarray(proto_seq)
+    enc = OneHotEncoder(handle_unknown='error')
+    enc.fit(key.reshape(-1,1))
+    encoding = enc.transform(key.reshape(-1,1)).toarray()
+    for i in range(N):
+        pos = np.argwhere(numpy_seq==i)
+        for j,k in itertools.product(pos, repeat=2):
+            wide_tensor[j,k,:] = encoding[i,:]
+    return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
 
-            d2.append(d1)
-        tensor.append(d2)
-
-    #print(np.array(tensor))
-    #print(np.array(tensor).shape)
-    return np.array(tensor)
 
 def widen_pssm(pssm, seq):
     """ Converts a seq into a tensor. Not LxN but LxLxN.
@@ -123,5 +134,25 @@ def widen_pssm(pssm, seq):
 
 if __name__ == '__main__':
 
-    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/2'
-    parse_dataset(tfrecords_path)
+    tfrecords_path = '../proteinnet/data/casp7/training/100/1'
+    # test function for the optimized function
+    for primary, evolutionary, tertiary, ter_mask in tqdm(parse_dataset(tfrecords_path)):
+        # doing this to make test faster
+        if primary.shape[0]<100:
+            print("Running for shape = %d"%(primary.shape[0]))
+            start = time.time()
+            wide_seq = widen_seq(primary)
+            total = time.time() - start
+            proto_seq = tf.make_tensor_proto(wide_seq)
+            numpy_seq = tf.make_ndarray(proto_seq)
+            print("Done new version in %f sec"%(total))
+            start = time.time()
+            old_seq = widen_seq_unoptimized(primary)
+            total = time.time() - start
+            print("Done old version in %f sec"%(total))
+            # important otherwise it can cause the difference due to machine precision
+            numpy_seq.astype(old_seq.dtype)
+            # compare if two array return same value
+            print("is same = "+str((numpy_seq==old_seq).all()))
+        else:
+            continue
