@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import time
 from readData_from_TFRec import widen_seq, parse_dataset, NUM_AAS, NUM_EVO_ENTRIES, NUM_DIMENSIONS
+from network import ResNet
 from tqdm import tqdm
 
 def widen_seq_unoptimized(seq):
@@ -40,6 +41,10 @@ def TestWidenSequence(primarySequence, maxTestShape=100):
     else:
         print("Primary Sequence shape larger than the maxTestShape \nGiven Sequence shape = %d, maxTestShape = %d"%(primarySequence.shape[0], maxTestShape))
 
+def TestNetwork():
+    nn = ResNet(input_channels=64, output_channels=64, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
+                batch_size=32, dropout_rate=0.15)
+    model = nn.model()
 
 def RunTests(path):
     maxTestShape = 90
