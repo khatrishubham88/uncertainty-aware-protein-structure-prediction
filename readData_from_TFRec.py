@@ -68,14 +68,6 @@ def parse_dataset(file_paths):
     raw_dataset = tf.data.TFRecordDataset(file_paths)
     for data in raw_dataset:
         parsed_data = parse_tfexample(data)
-        # raw_dataset.create_batch(batch_size, crop_size) --> at this call the cropping should be done
-        print(parsed_data)
-        # for raw_example in iter(tfrecord_dataset):
-        #    id_, primary, evolutionary, secondary, tertiary, pri_length, ter_mask = parse_one_tfrecord(raw_example, num_evo_entries=21)
-        # tf.map to create batches
-        #    print(ter_mask)
-        # widen_seq(primary)
-        #    break
         yield parsed_data
 
 def widen_seq(seq):
@@ -132,8 +124,9 @@ def widen_pssm(pssm, seq):
 
 if __name__ == '__main__':
     # add your test flag here and put it below
-    tfrecords_path = '../proteinnet/data/casp7/training/100/1'
+    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
     # test function for the optimized function
     for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
         print(ter_mask)
         pass
+

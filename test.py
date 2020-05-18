@@ -53,6 +53,6 @@ def RunTests(path):
 
 if __name__ == '__main__':
     # add your test flag here and put it below
-    tfrecords_path = '../proteinnet/data/casp7/training/100/1'
+    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
     # test function for the optimized function
     RunTests(tfrecords_path)
