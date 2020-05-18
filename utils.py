@@ -1,8 +1,13 @@
-import os
-import numpy as np
-import tensorflow as tf
 import math
 import itertools
+import tensorflow as tf
+import tensorflow.keras.backend as K
+
+
+def mask_2d_to_3d(masks_2d):
+    mask_3d = K.stack(masks_2d, axis=0)
+
+    return mask_3d
 
 
 """Calculates the distance between two AA
@@ -61,3 +66,4 @@ def calc_pairwise_distances(tertiary):
         distance_matrix.append(dist)
 
     return (tf.convert_to_tensor(distance_matrix))
+

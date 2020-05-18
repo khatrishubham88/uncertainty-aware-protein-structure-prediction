@@ -1,18 +1,23 @@
-from tensorflow.keras import Model
-from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Conv2DTranspose, Input, Dropout
+import tensorflow as tf
+import tensorflow.keras.backend as K
+
+from tensorflow.keras import Model, Input
+from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.optimizers import Adam
 
 """
 To-Do List:
-1. Implement DropOut (done: implemented before each add layer [M.])
-2. Test the model output on data from Kaggle.
-3. Implement weighted categorical cross-entropy loss.
-4. Weight initialization.
-5. Look into position-specific bias mentioned in DeepMind paper.
+1. Test the model output on data from Kaggle.
+2. Implement cross-entropy loss using masking matrix.
+3. Weight initialization.
+4. Look into position-specific bias mentioned in DeepMind paper.
 """
 
+
 class ResNet:
-    def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, crop_size=64,
-                 non_linearity='elu', keep_prob=1.0):
+    def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
+                 non_linearity='elu', dropout_rate=1.0):
         super(ResNet, self).__init__()
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
@@ -23,12 +28,14 @@ class ResNet:
         self.num_blocks = num_blocks
         self.num_channels = num_channels
         self.dilation = dilation
+        self.batch_size = batch_size
         self.non_linearity = non_linearity
-        self.keep_prob = keep_prob
+        self.dropout_rate = dropout_rate
 
     def model(self):
         # Create the input layer
-        inputs = x = Input(shape=(self.crop_size, self.crop_size, self.input_channels), name='input_crop')
+        inputs = x = Input(shape=(self.crop_size, self.crop_size, self.input_channels), batch_size=self.batch_size,
+                           name='input_crop')
 
         # Down- or up sample the input depending on number of input channels and number of channels in first RestNet
         # block
@@ -45,8 +52,8 @@ class ResNet:
                                                   block_num=block_num, kernel_size=3)
                 for layer in layers_resnet:
                     x = layer(x)
-                if self.keep_prob < 1.0:
-                    x = Dropout(rate=self.keep_prob, name='dropout_' + str(idx) + '_' + str(block_num))(x)
+                if self.dropout_rate < 1.0:
+                    x = Dropout(rate=self.dropout_rate, name='dropout_' + str(idx) + '_' + str(block_num))(x)
                 x = add([x, identity], name='add_' + str(idx) + '_' + str(block_num))
 
                 if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
@@ -62,9 +69,7 @@ class ResNet:
                     elif self.num_channels[idx] < self.output_channels:
                         x = self.make_layer()[0](x)
 
-        out = x
-        # Here we need to implement a Softmax layer.
-
+        out = Softmax(axis=3, name='softmax_layer')(x)
         distance_pred_resnet = Model(inputs, out, name='AlphaFold_Distance_Prediction_Model')
 
         return distance_pred_resnet
@@ -117,7 +122,16 @@ class ResNet:
 
 
 if __name__ == "__main__":
-    nn = ResNet(input_channels=128, output_channels=64, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
-                keep_prob=0.15)
+    nn = ResNet(input_channels=64, output_channels=64, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
+                batch_size=32, dropout_rate=0.15)
     model = nn.model()
-    model.summary()
+
+    x = tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0)
+    y_pred = model(x)
+    y_true = K.softmax(tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0), axis=3)
+    mask = K.random_uniform(shape=(32, 64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32)
+
+    loss = CategoricalCrossentropy()
+    optim = Adam(amsgrad=True)
+
+    model.fit()
