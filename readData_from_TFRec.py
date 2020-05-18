@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
 import numpy as np
+from utils import calc_pairwise_distances
 
 NUM_AAS = 20
 NUM_DIMENSIONS = 3
@@ -53,21 +54,28 @@ def parse_tfexample(serialized_input):
     return primary, evolutionary, tertiary, ter_mask
 
 
+
 def parse_dataset(file_paths):
     """ This function iterates over all input files
     and extract record information from each single file"""
     raw_dataset = tf.data.TFRecordDataset(file_paths)
-    raw_dataset = raw_dataset.map(lambda raw: parse_tfexample(raw))
+    raw_dataset = raw_dataset.map(lambda raw: parse_tfexample(raw)) #each item in raw_dataset is a tuple of tensors
     #raw_dataset.create_batch(batch_size, crop_size) --> at this call the cropping should be done
     for data in raw_dataset:
-        print(data)
+        tertiary = data[2]
+        #print(data[0])
+        #res = widen_seq(data[0])
+        #print(res.shape)
+        print(calc_pairwise_distances(tertiary))
+
+        #aa1_backpone_pos = np.array((tertiary[0].tolist(), tertiary[1].tolist(), tertiary[2].tolist()))
+        #aa2_backpone_pos = np.array((tertiary[3].tolist(), tertiary[4].tolist(), tertiary[5].tolist()))
+        #print(aa1_backpone_pos)
+        #print(aa2_backpone_pos)
+        #N_distane, C_alpha_distance, C_prime_distance = calc_distance(aa1_backpone_pos, aa2_backpone_pos)
+        #print('N_distance:', N_distane, 'C_alpha_distance :', C_alpha_distance, 'C_prime_distance :', C_prime_distance)
         break
-    #for raw_example in iter(tfrecord_dataset):
-    #    id_, primary, evolutionary, secondary, tertiary, pri_length, ter_mask = parse_one_tfrecord(raw_example, num_evo_entries=21)
-        #tf.map to create batches
-    #    print(ter_mask)
-        #widen_seq(primary)
-    #    break
+
 
 def widen_seq(seq):
     """
@@ -81,7 +89,7 @@ def widen_seq(seq):
         d2 = []
         for j in range(len(seq)):
             # calculating on-hot for one amino acid
-            d1 = [1 if (j<len(seq) and i<len(seq) and key[x] == seq[i] and key[x] == seq[j])
+            d1 = [1 if (key[x] == seq[i] and key[x] == seq[j])
                 else 0 for x in range(NUM_AAS)]
 
             d2.append(d1)
@@ -89,7 +97,7 @@ def widen_seq(seq):
 
     #print(np.array(tensor))
     #print(np.array(tensor).shape)
-    return np.array(tensor)
+    return np.array(tensor) #(LxLx20)
 
 def widen_pssm(pssm, seq):
     """ Converts a seq into a tensor. Not LxN but LxLxN.
