@@ -4,6 +4,15 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 
 
+def masked_categorical_cross_entropy(y_true, y_pred, mask):
+    y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+    loss = y_true * K.log(y_pred)
+    loss = -K.sum(loss, axis=3) * K.cast_to_floatx(mask)
+    loss = K.sum(K.sum(K.sum(loss))) / (mask.shape[0] * mask.shape[1] * mask.shape[2])
+
+    return loss
+
+
 def mask_2d_to_3d(masks_2d):
     mask_3d = K.stack(masks_2d, axis=0)
 
