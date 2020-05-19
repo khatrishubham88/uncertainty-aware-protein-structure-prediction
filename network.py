@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
@@ -122,16 +123,41 @@ class ResNet:
 
 
 if __name__ == "__main__":
-    nn = ResNet(input_channels=64, output_channels=64, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
-                batch_size=32, dropout_rate=0.15)
+    #nn = ResNet(input_channels=64, output_channels=64, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
+    #            batch_size=32, dropout_rate=0.15)
+    #model = nn.model()
+
+    #x = tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0)
+    #y_pred = model(x)
+    #y_true = K.softmax(tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0), axis=3)
+    #mask = K.random_uniform(shape=(32, 64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32)
+
+    #loss = CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    #l = loss(y_pred, y_true, mask)
+
+    nn = ResNet(input_channels=2, output_channels=2, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
+                batch_size=2, crop_size=2, dropout_rate=0.15)
     model = nn.model()
 
-    x = tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0)
+    x = tf.keras.backend.random_normal(shape=(2, 2, 2, 2), mean=0.0, stddev=1.0)
     y_pred = model(x)
-    y_true = K.softmax(tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0), axis=3)
-    mask = K.random_uniform(shape=(32, 64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32)
+    y_true = K.softmax(tf.keras.backend.random_normal(shape=(2, 2, 2, 2), mean=0.0, stddev=1.0), axis=3)
+    mask = tf.convert_to_tensor(np.eye(2, 2))
+    mask = K.reshape(mask, shape=(2, 2, 1))
+    mask = K.tile(mask, (1, 1, 2))
+    mask = tf.transpose(mask, perm=(2, 1, 0))
+
+    """
+    Testing based on 
+    https://stackoverflow.com/questions/47057361/how-do-i-mask-a-loss-function-in-keras-with-the-tensorflow-backend
+    
+    It can be seen that both approaches yield the same loss matrix / loss sum.
+    """
+
+    loss = CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    l = loss(y_pred, y_true) * K.cast_to_floatx(mask)
+    print(K.sum(l)/(2*2*2))
 
     loss = CategoricalCrossentropy()
-    optim = Adam(amsgrad=True)
-
-    model.fit()
+    l = loss(y_pred, y_true, mask)
+    print(l)
