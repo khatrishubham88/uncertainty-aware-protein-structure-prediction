@@ -1,7 +1,10 @@
 import os
 import tensorflow as tf
 import numpy as np
+from sklearn.preprocessing import OneHotEncoder
+import itertools
 from utils import calc_pairwise_distances
+
 
 NUM_AAS = 20
 NUM_DIMENSIONS = 3
@@ -41,11 +44,11 @@ def parse_tfexample(serialized_input):
                                     'mask':         tf.io.FixedLenSequenceFeature((1,),               tf.float32, allow_missing=True)})
 
     id_ = context['id'][0]
-    primary =   tf.dtypes.cast(features['primary'][:, 0], tf.int32)
-    evolutionary =          features['evolutionary']
+    primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
+    evolutionary = features['evolutionary']
     secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
-    tertiary =              features['tertiary']
-    mask =                  features['mask'][:, 0]
+    tertiary = features['tertiary']
+    mask = features['mask'][:, 0]
 
     pri_length = tf.size(primary)
     # Generate tertiary masking matrix--if mask is missing then assume all residues are present
@@ -56,26 +59,16 @@ def parse_tfexample(serialized_input):
 
 
 def parse_dataset(file_paths):
-    """ This function iterates over all input files
-    and extract record information from each single file"""
+    """
+    This function iterates over all input files
+    and extract record information from each single file
+    Use Yield for optimization purpose causes reading when needed
+    """
+
     raw_dataset = tf.data.TFRecordDataset(file_paths)
-    raw_dataset = raw_dataset.map(lambda raw: parse_tfexample(raw)) #each item in raw_dataset is a tuple of tensors
-    #raw_dataset.create_batch(batch_size, crop_size) --> at this call the cropping should be done
     for data in raw_dataset:
-        tertiary = data[2]
-        #print(data[0])
-        #res = widen_seq(data[0])
-        #print(res.shape)
-        print(calc_pairwise_distances(tertiary))
-
-        #aa1_backpone_pos = np.array((tertiary[0].tolist(), tertiary[1].tolist(), tertiary[2].tolist()))
-        #aa2_backpone_pos = np.array((tertiary[3].tolist(), tertiary[4].tolist(), tertiary[5].tolist()))
-        #print(aa1_backpone_pos)
-        #print(aa2_backpone_pos)
-        #N_distane, C_alpha_distance, C_prime_distance = calc_distance(aa1_backpone_pos, aa2_backpone_pos)
-        #print('N_distance:', N_distane, 'C_alpha_distance :', C_alpha_distance, 'C_prime_distance :', C_prime_distance)
-        break
-
+        parsed_data = parse_tfexample(data)
+        yield parsed_data
 
 def widen_seq(seq):
     """
@@ -83,21 +76,21 @@ def widen_seq(seq):
      'K': '8', 'L': '9', 'M': '10', 'N': '11', 'P': '12', 'Q': '13', 'R': '14', 'S': '15', 'T': '16', 'V': '17', 'W': '18', 'Y': '19'}
     """
     """ Converts a seq into a one-hot tensor. Not LxN but LxLxN"""
-    key = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-    tensor = []
-    for i in range(len(seq)):
-        d2 = []
-        for j in range(len(seq)):
-            # calculating on-hot for one amino acid
-            d1 = [1 if (key[x] == seq[i] and key[x] == seq[j])
-                else 0 for x in range(NUM_AAS)]
+    L = seq.shape[0]
+    N = 20
+    key = np.arange(start=0,stop=N,step=1)
+    wide_tensor = np.zeros(shape=(L,L,N))
+    proto_seq = tf.make_tensor_proto(seq)
+    numpy_seq = tf.make_ndarray(proto_seq)
+    enc = OneHotEncoder(handle_unknown='error')
+    enc.fit(key.reshape(-1,1))
+    encoding = enc.transform(key.reshape(-1,1)).toarray()
+    for i in range(N):
+        pos = np.argwhere(numpy_seq==i)
+        for j,k in itertools.product(pos, repeat=2):
+            wide_tensor[j,k,:] = encoding[i,:]
+    return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
 
-            d2.append(d1)
-        tensor.append(d2)
-
-    #print(np.array(tensor))
-    #print(np.array(tensor).shape)
-    return np.array(tensor) #(LxLx20)
 
 def widen_pssm(pssm, seq):
     """ Converts a seq into a tensor. Not LxN but LxLxN.
@@ -130,6 +123,10 @@ def widen_pssm(pssm, seq):
     return np.array(tensor)
 
 if __name__ == '__main__':
+    # add your test flag here and put it below
+    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
+    # test function for the optimized function
+    for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
+        print(ter_mask)
+        pass
 
-    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/2'
-    parse_dataset(tfrecords_path)
