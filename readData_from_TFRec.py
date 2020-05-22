@@ -92,6 +92,7 @@ def widen_seq(seq):
         pos = np.argwhere(numpy_seq==i)
         for j,k in itertools.product(pos, repeat=2):
             wide_tensor[j,k,:] = encoding[i,:]
+
     return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
 
 

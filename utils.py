@@ -116,15 +116,6 @@ def calc_pairwise_distances(tertiary):
     return tf.convert_to_tensor(distance_matrix)
 
 
-if __name__ == '__main__':
-    out = K.softmax(K.random_normal(shape=(32, 64, 64, 64)), axis=3)
-    dist = output_to_distancemaps(out, 2, 22, 64)
-    print(np.argmax(out[31][32][32][:]))
-    print(dist[31][32][32])
-
-    return tf.convert_to_tensor(distance_matrix)
-
-
 """Returns the distogram tensor LxLxnum_bins from the distance map LxL.
 Input: distance_map: LxL distance matrx in angstrom
        min: minimum value for the histogram in angstrom
@@ -144,3 +135,9 @@ def to_distogram(distance_map, min, max, num_bins):
 
     return distogram
 
+
+if __name__ == '__main__':
+    out = K.softmax(K.random_normal(shape=(32, 64, 64, 64)), axis=3)
+    dist = output_to_distancemaps(out, 2, 22, 64)
+    print(np.argmax(out[31][32][32][:]))
+    print(dist[31][32][32])
