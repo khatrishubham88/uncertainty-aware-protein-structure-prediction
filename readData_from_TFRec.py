@@ -1,8 +1,9 @@
 import os
 import tensorflow as tf
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder
 import itertools
+
+from sklearn.preprocessing import OneHotEncoder
 from utils import calc_pairwise_distances
 
 
@@ -54,6 +55,7 @@ def parse_tfexample(serialized_input):
     # Generate tertiary masking matrix--if mask is missing then assume all residues are present
     mask = tf.cond(tf.not_equal(tf.size(mask), 0), lambda: mask, lambda: tf.ones([pri_length]))
     ter_mask = masking_matrix(mask)
+
     return primary, evolutionary, tertiary, ter_mask
 
 
