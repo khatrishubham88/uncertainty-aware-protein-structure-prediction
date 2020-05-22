@@ -15,7 +15,7 @@ NUM_EVO_ENTRIES = 21
 def masking_matrix(input_mask):
     """ Constructs a masking matrix to zero out pairwise distances due to missing residues or padding.
     Args:
-        mask: 0/1 vector indicating whether a position should be masked (0) or not (1)
+        input_mask: 0/1 vector indicating whether a position should be masked (0) or not (1)
     Returns:
         A square matrix with all 1s except for rows and cols whose corresponding indices in mask are set to 0.
         [SEQ_LENGTH, SEQ_LENGTH]

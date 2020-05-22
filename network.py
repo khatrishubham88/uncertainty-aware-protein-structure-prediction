@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
@@ -5,6 +6,8 @@ from tensorflow.keras import Model, Input
 from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.optimizers import Adam
+
+from utils import masked_categorical_cross_entropy
 
 """
 To-Do List:
@@ -59,9 +62,10 @@ class ResNet:
                 if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
                     if self.num_channels[idx] > self.num_channels[idx + 1]:
                         x = Conv2D(filters=self.num_channels[idx + 1], kernel_size=1, strides=1, padding='same',
-                                   name='downscale_' + str(idx) + 'to' + str(idx + 1))(x)
+                                   data_format='channels_last', name='downscale_' + str(idx) + 'to' + str(idx + 1))(x)
                     elif self.num_channels[idx] < self.num_channels[idx + 1]:
                         x = Conv2DTranspose(filters=self.num_channels[idx + 1], kernel_size=1, strides=1,
+                                            data_format='channels_last',
                                             padding='same', name='upscale_' + str(idx) + 'to' + str(idx + 1))(x)
                 elif ((block_num + 1) == num_set_blocks) and ((idx + 1) == len(self.num_blocks)):
                     if self.num_channels[idx] > self.output_channels:
@@ -79,18 +83,18 @@ class ResNet:
         if first == 'True':
             if self.input_channels > self.num_channels[0]:
                 layers.append(Conv2D(filters=self.num_channels[0], kernel_size=1, strides=1, padding='same',
-                                     name='downscale_conv2d'))
+                                     data_format='channels_last', name='downscale_conv2d'))
             elif self.input_channels < self.num_channels[0]:
                 layers.append(Conv2DTranspose(filters=self.num_channels[0], kernel_size=1, strides=1, padding='same',
-                                              name='downscale_conv2dtranspose'))
+                                              data_format='channels_last', name='downscale_conv2dtranspose'))
             layers.append(BatchNormalization(name='downscale_bn'))
         elif first == 'False':
             if self.num_channels[-1] < self.output_channels:
                 layers.append(Conv2DTranspose(filters=self.output_channels, kernel_size=1, strides=1, padding='same',
-                                              name='upscale_conv2d'))
+                                              data_format='channels_last', name='upscale_conv2d'))
             elif self.num_channels[-1] > self.output_channels:
                 layers.append(Conv2D(filters=self.output_channels, kernel_size=1, strides=1, padding='same',
-                                     name='upscale_conv2d'))
+                                     data_format='channels_last', name='upscale_conv2d'))
 
         return layers
 
@@ -102,36 +106,66 @@ class ResNet:
         layers.append(Activation(activation=self.non_linearity,
                                  name='non_linearity_down_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2D(filters=num_filters//2, kernel_size=1, strides=stride, padding='same',
-                             name='conv_down_' + str(set_block) + '_' + str(block_num)))
+                             data_format='channels_last', name='conv_down_' + str(set_block) + '_' + str(block_num)))
 
         # Strided convolution
         layers.append(BatchNormalization(name='batch_norm_conv_' + str(set_block) + '_' + str(block_num)))
         layers.append(Activation(activation=self.non_linearity,
                                  name='non_linearity_conv_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2D(filters=num_filters//2, kernel_size=kernel_size, strides=stride, padding='same',
-                             dilation_rate=atou_rate, name='conv_dil_' + str(set_block) + '_' + str(block_num)))
+                             dilation_rate=atou_rate, data_format='channels_last',
+                             name='conv_dil_' + str(set_block) + '_' + str(block_num)))
 
         # Project up
         layers.append(BatchNormalization(name='batch_norm_up_' + str(set_block) + '_' + str(block_num)))
         layers.append(Activation(activation=self.non_linearity,
                                  name='non_linearity_up_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2DTranspose(filters=num_filters, kernel_size=1, strides=stride, padding='same',
+                                      data_format='channels_last',
                                       name='conv_up_' + str(set_block) + '_' + str(block_num)))
 
         return layers
 
 
 if __name__ == "__main__":
-    nn = ResNet(input_channels=64, output_channels=64, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
-                batch_size=32, dropout_rate=0.15)
+    #nn = ResNet(input_channels=64, output_channels=64, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
+    #            batch_size=32, dropout_rate=0.15)
+    #model = nn.model()
+
+    #x = tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0)
+    #y_pred = model(x)
+    #y_true = K.softmax(tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0), axis=3)
+    #mask = K.random_uniform(shape=(32, 64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32)
+
+    #loss = CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    #l = loss(y_pred, y_true, mask)
+
+    nn = ResNet(input_channels=2, output_channels=2, num_blocks=[4, 4], num_channels=[64, 32], dilation=[1, 2, 4, 8],
+                batch_size=2, crop_size=2, dropout_rate=0.15)
     model = nn.model()
 
-    x = tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0)
+    x = tf.keras.backend.random_normal(shape=(2, 2, 2, 2), mean=0.0, stddev=1.0)
     y_pred = model(x)
-    y_true = K.softmax(tf.keras.backend.random_normal(shape=(32, 64, 64, 64), mean=0.0, stddev=1.0), axis=3)
-    mask = K.random_uniform(shape=(32, 64, 64), minval=0, maxval=2, dtype=tf.dtypes.int32)
+    y_true = K.softmax(tf.keras.backend.random_normal(shape=(2, 2, 2, 2), mean=0.0, stddev=1.0), axis=3)
+    mask = tf.convert_to_tensor(np.eye(2, 2))
+    mask = K.reshape(mask, shape=(2, 2, 1))
+    mask = K.tile(mask, (1, 1, 2))
+    mask = tf.transpose(mask, perm=(2, 1, 0))
+
+    """
+    Testing based on 
+    https://stackoverflow.com/questions/47057361/how-do-i-mask-a-loss-function-in-keras-with-the-tensorflow-backend
+    
+    It can be seen that both approaches yield the same loss matrix / loss sum.
+    """
+
+    loss = CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    l = loss(y_true, y_pred) * K.cast_to_floatx(mask)
+    print(K.sum(K.sum(K.sum(l)))/(2*2*2))
 
     loss = CategoricalCrossentropy()
-    optim = Adam(amsgrad=True)
+    l = loss(y_true, y_pred, mask)
+    print(l)
 
-    model.fit()
+    l = masked_categorical_cross_entropy(y_true, y_pred, mask=mask)
+    print(l)

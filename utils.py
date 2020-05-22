@@ -7,6 +7,15 @@ from bisect import bisect
 
 
 
+def masked_categorical_cross_entropy(y_true, y_pred, mask):
+    y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+    loss = y_true * K.log(y_pred)
+    loss = -K.sum(loss, axis=3) * K.cast_to_floatx(mask)
+    loss = K.sum(K.sum(K.sum(loss))) / (mask.shape[0] * mask.shape[1] * mask.shape[2])
+
+    return loss
+
+
 def mask_2d_to_3d(masks_2d):
     mask_3d = K.stack(masks_2d, axis=0)
 
@@ -42,7 +51,6 @@ of two AAs and returns the angstrom distance between them
 input: coord1 [x, y, z], coord2 [x, y, z]
 """
 def calc_calpha_distance(coord1, coord2):
-
     C_alpha_distance = math.sqrt((coord2[0] - coord1[0])**2 + (coord2[1] - coord1[1])**2 + (coord2[2] - coord1[2])**2)
     return (C_alpha_distance/100)
 
@@ -55,11 +63,11 @@ def calc_pairwise_distances(tertiary):
     tertiary_numpy = tertiary.numpy()
     c_alpha_coord = []
     for index, coord in enumerate(tertiary_numpy):
-        #extract only c-alpha coordinates
+        # Extract only c-alpha coordinates
         if (index%3 == 1):
             c_alpha_coord.append(coord.tolist())
 
-    #Initialize the distance matrix of shape (len_seq, len_seq)
+    # Initialize the distance matrix of shape (len_seq, len_seq)
     distance_matrix = []
     for i, coord1 in enumerate(c_alpha_coord):
         dist = []
