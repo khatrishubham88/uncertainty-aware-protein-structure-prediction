@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 import itertools
 from utils import calc_pairwise_distances
+from utils import to_distogram
 
 
 NUM_AAS = 20
@@ -127,5 +128,4 @@ if __name__ == '__main__':
     tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
     # test function for the optimized function
     for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
-        print(calc_pairwise_distances(tertiary))
-        break
+        pass

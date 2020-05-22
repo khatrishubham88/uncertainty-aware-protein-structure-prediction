@@ -1,7 +1,10 @@
 import math
 import itertools
 import tensorflow as tf
+import numpy as np
 import tensorflow.keras.backend as K
+from bisect import bisect
+
 
 
 def mask_2d_to_3d(masks_2d):
@@ -35,17 +38,17 @@ def calc_distance(aa1, aa2):
 
 
 """This function takes as input the two C-alpha corrdinates
-of two AAs and returns the distance between them
+of two AAs and returns the angstrom distance between them
 input: coord1 [x, y, z], coord2 [x, y, z]
 """
 def calc_calpha_distance(coord1, coord2):
 
     C_alpha_distance = math.sqrt((coord2[0] - coord1[0])**2 + (coord2[1] - coord1[1])**2 + (coord2[2] - coord1[2])**2)
-    return (C_alpha_distance)
+    return (C_alpha_distance/100)
 
 
 """Calculates the pairwise distances between
-AAs of a protein and returns the distance map.
+AAs of a protein and returns the distance map in angstrom.
 input: tertiary is a tensor of shape (seq_len, 3)
 """
 def calc_pairwise_distances(tertiary):
@@ -67,3 +70,22 @@ def calc_pairwise_distances(tertiary):
 
     return (tf.convert_to_tensor(distance_matrix))
 
+
+"""Returns the distogram tensor LxLxnum_bins from the distance map LxL.
+Input: distance_map: LxL distance matrx in angstrom
+       min: minimum value for the histogram in angstrom
+       max: maximum value for the histogram in angstrom
+       num_bins: integer number
+"""
+def to_distogram(distance_map, min, max, num_bins):
+    assert min >= 0.0
+    assert max > 0.0
+    histo_range = max-min
+
+    #print(distance_map)
+    distance_map = np.clip(distance_map, a_min=min, a_max=max)
+    distance_map = np.int32(np.floor((num_bins-1)*(distance_map-min)/(histo_range)))
+    print(distance_map)
+    distogram = np.eye(num_bins)[distance_map]
+
+    return(distogram)
