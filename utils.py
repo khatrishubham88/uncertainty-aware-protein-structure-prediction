@@ -1,34 +1,38 @@
 import math
 import numpy as np
 import tensorflow as tf
-import numpy as np
 import tensorflow.keras.backend as K
+
 from bisect import bisect
 
 
-def masked_categorical_cross_entropy(y_true, y_pred, mask):
-    y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-    loss = y_true * K.log(y_pred)
-    loss = -K.sum(loss, axis=3) * K.cast_to_floatx(mask)
-    loss = K.sum(K.sum(K.sum(loss))) / y_true.size()[0]
+def load_npy_binary(path):
+    return np.load(path)
+
+
+def masked_categorical_cross_entropy(mask):
+    mask = K.variable(mask)
+
+    def loss(y_true, y_pred):
+        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+        loss = tf.keras.losses.CategoricalCrossentropy()
+        l = loss(y_true, y_pred) * mask
+        l = K.sum(K.sum(K.sum(l)))
+
+        return l
 
     return loss
 
 
-def mask_2d_to_3d(masks_2d):
-    return K.stack(masks_2d, axis=0)
+def expand_dim(low_dim_tensor):
+    return K.stack(low_dim_tensor, axis=0)
 
 
-def primary_2d_to_3d(primary_2d):
-    return K.stack(primary_2d, axis=0)
-
-
-def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins, trash_class=False):
+def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
     output = K.eval(output)
     distance_maps = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
 
     bins = np.linspace(min_angstrom, max_angstrom, num_bins + 1)
-    print(bins)
     values = np.argmax(output, axis=3)
     for batch in range(distance_maps.shape[0]):
         distance_maps[batch] = (bins[values[batch]] + bins[values[batch] + 1]) / 2
@@ -36,18 +40,43 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins, trash_c
     return distance_maps
 
 
-def pad_tensor(tensor, dim=100, two_dim=False):
+def pad_tensor(tensor, shape):
+    if isinstance(shape, int):
+        shape = tuple([shape])
+    else:
+        shape = tuple(shape)
+    dim = len(shape)
+    padded_tensor = np.zeros(shape)
+    if dim == 1:
+        padded_tensor[0:tensor.shape[0]] = tensor
+    elif dim == 2:
+        padded_tensor[0:tensor.shape[0], 0:tensor.shape[0]] = tensor
+
+    return padded_tensor
+
+
+def pad_primary(tensor, shape):
     curr_length = tensor.shape[0]
-    if not two_dim:
-        num_channels = tensor.shape[2]
-        padded_tensor = np.zeros(shape=(dim, dim, num_channels))
-        padded_tensor[0:curr_length, 0:curr_length, :] = tensor
-    elif two_dim:
-        padded_tensor = np.zeros(shape=(dim, dim))
-        padded_tensor[0:curr_length, 0:curr_length] = tensor
+    padded_tensor = np.zeros(shape=shape) * (-1)
+    padded_tensor[0:curr_length] = tensor
 
-    return tf.convert_to_tensor(padded_tensor)
+    return padded_tensor
 
+
+def pad_tertiary(tensor, shape):
+    curr_length = tensor.shape[0]
+    padded_tensor = np.zeros(shape=shape) * (-1)
+    padded_tensor[0:curr_length, 0:curr_length] = tensor
+
+    return padded_tensor
+
+
+def pad_mask(tensor, shape):
+    curr_length = tensor.shape[0]
+    padded_tensor = np.zeros(shape=shape)
+    padded_tensor[0:curr_length, 0:curr_length] = tensor
+
+    return padded_tensor
 
 """Calculates the distance between two AA
 using three different approaches:
@@ -97,7 +126,7 @@ input: tertiary is a tensor of shape (seq_len, 3)
 
 
 def calc_pairwise_distances(tertiary):
-    tertiary_numpy = tertiary.numpy()
+    tertiary_numpy = tertiary.numpy() / 100
     c_alpha_coord = []
     for index, coord in enumerate(tertiary_numpy):
         # Extract only c-alpha coordinates
@@ -127,17 +156,8 @@ def to_distogram(distance_map, min, max, num_bins):
     assert max > 0.0
     histo_range = max-min
 
-    #print(distance_map)
     distance_map = np.clip(distance_map, a_min=min, a_max=max)
     distance_map = np.int32(np.floor((num_bins-1)*(distance_map-min)/(histo_range)))
-    print(distance_map)
     distogram = np.eye(num_bins)[distance_map]
 
     return distogram
-
-
-if __name__ == '__main__':
-    out = K.softmax(K.random_normal(shape=(32, 64, 64, 64)), axis=3)
-    dist = output_to_distancemaps(out, 2, 22, 64)
-    print(np.argmax(out[31][32][32][:]))
-    print(dist[31][32][32])

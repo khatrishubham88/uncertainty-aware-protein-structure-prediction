@@ -81,17 +81,17 @@ def widen_seq(seq):
     """ Converts a seq into a one-hot tensor. Not LxN but LxLxN"""
     L = seq.shape[0]
     N = 20
-    key = np.arange(start=0,stop=N,step=1)
-    wide_tensor = np.zeros(shape=(L,L,N))
+    key = np.arange(start=0, stop=N, step=1)
+    wide_tensor = np.zeros(shape=(L, L, N))
     proto_seq = tf.make_tensor_proto(seq)
     numpy_seq = tf.make_ndarray(proto_seq)
     enc = OneHotEncoder(handle_unknown='error')
-    enc.fit(key.reshape(-1,1))
-    encoding = enc.transform(key.reshape(-1,1)).toarray()
+    enc.fit(key.reshape(-1, 1))
+    encoding = enc.transform(key.reshape(-1, 1)).toarray()
     for i in range(N):
-        pos = np.argwhere(numpy_seq==i)
-        for j,k in itertools.product(pos, repeat=2):
-            wide_tensor[j,k,:] = encoding[i,:]
+        pos = np.argwhere(numpy_seq == i)
+        for j, k in itertools.product(pos, repeat=2):
+            wide_tensor[j, k, :] = encoding[i, :]
 
     return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
 
