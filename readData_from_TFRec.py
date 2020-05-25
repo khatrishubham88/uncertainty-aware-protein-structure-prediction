@@ -138,12 +138,13 @@ if __name__ == '__main__':
         crops_per_seq = len(primary) // stride #--> stride = 64
         if len(primary) % stride > 0:
             crops_per_seq += 1
-        total_crops = crops_per_seq * crops_per_seq
+        total_crops = crops_per_seq * crops_per_seq #--> this indicates how many pairs of (i,j) should we have for this protein alone
 
         padded_primary = pad_primary(primary, stride*crops_per_seq)
         padded_tertiary = pad_tertiary(distance_map, stride*crops_per_seq)
         padded_mask = pad_mask(ter_mask, stride*crops_per_seq)
 
+        #ready to use data
         primary_2D = widen_seq(padded_primary)
         distogram = to_distogram(padded_tertiary, 2, 22, 64)
         break

@@ -56,8 +56,9 @@ def pad_tensor(tensor, shape):
 
 
 def pad_primary(tensor, shape):
+    #AA space is betwen 0-19 --> paddings have Id 20
     curr_length = tensor.shape[0]
-    padded_tensor = np.zeros(shape=shape)
+    padded_tensor = np.full(shape, 20)
     padded_tensor[0:curr_length] = tensor
 
     return padded_tensor
