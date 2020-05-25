@@ -66,11 +66,7 @@ def pad_primary(tensor, shape):
 
 def pad_tertiary(tensor, shape):
     curr_length = tensor.shape[0]
-<<<<<<< HEAD
     padded_tensor = np.zeros(shape=shape)
-=======
-    padded_tensor = np.zeros(shape=(shape, shape))
->>>>>>> aaafae46731f4d445c3a57e11f7c28dabebc4ecc
     padded_tensor[0:curr_length, 0:curr_length] = tensor
 
     return padded_tensor
