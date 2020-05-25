@@ -1,11 +1,13 @@
 import os
 import tensorflow as tf
 import numpy as np
-import itertools
-
 from sklearn.preprocessing import OneHotEncoder
+import itertools
 from utils import calc_pairwise_distances
 from utils import to_distogram
+from utils import pad_primary
+from utils import pad_mask
+from utils import pad_tertiary
 
 
 NUM_AAS = 20
@@ -56,7 +58,6 @@ def parse_tfexample(serialized_input):
     # Generate tertiary masking matrix--if mask is missing then assume all residues are present
     mask = tf.cond(tf.not_equal(tf.size(mask), 0), lambda: mask, lambda: tf.ones([pri_length]))
     ter_mask = masking_matrix(mask)
-
     return primary, evolutionary, tertiary, ter_mask
 
 
@@ -81,18 +82,17 @@ def widen_seq(seq):
     """ Converts a seq into a one-hot tensor. Not LxN but LxLxN"""
     L = seq.shape[0]
     N = 20
-    key = np.arange(start=0, stop=N, step=1)
-    wide_tensor = np.zeros(shape=(L, L, N))
+    key = np.arange(start=0,stop=N,step=1)
+    wide_tensor = np.zeros(shape=(L,L,N))
     proto_seq = tf.make_tensor_proto(seq)
     numpy_seq = tf.make_ndarray(proto_seq)
     enc = OneHotEncoder(handle_unknown='error')
-    enc.fit(key.reshape(-1, 1))
-    encoding = enc.transform(key.reshape(-1, 1)).toarray()
+    enc.fit(key.reshape(-1,1))
+    encoding = enc.transform(key.reshape(-1,1)).toarray()
     for i in range(N):
-        pos = np.argwhere(numpy_seq == i)
-        for j, k in itertools.product(pos, repeat=2):
-            wide_tensor[j, k, :] = encoding[i, :]
-
+        pos = np.argwhere(numpy_seq==i)
+        for j,k in itertools.product(pos, repeat=2):
+            wide_tensor[j,k,:] = encoding[i,:]
     return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
 
 
@@ -126,9 +126,43 @@ def widen_pssm(pssm, seq):
 
     return np.array(tensor)
 
+
+def create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride):
+    batches = []
+    for x in range(0,primary_2D.shape[0],stride):
+        for y in range(0,primary_2D.shape[0],stride):
+            primary_2D_crop = primary_2D[x:x+stride, y:y+stride, :]
+            padded_tertiary_crop = padded_tertiary[x:x+stride, y:y+stride]
+            distogram_crop = to_distogram(padded_tertiary_crop, 2, 22, 64)
+            mask_crop = padded_mask[x:x+stride, y:y+stride]
+            batches.append((primary_2D_crop, distogram_crop, mask_crop))
+
+    return batches
+
+
 if __name__ == '__main__':
     # add your test flag here and put it below
     tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
+    stride = 64
     # test function for the optimized function
     for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
-        pass
+        print(len(primary))
+        distance_map = calc_pairwise_distances(tertiary)
+
+        crops_per_seq = len(primary) // stride #--> stride = 64
+        if len(primary) % stride > 0:
+            crops_per_seq += 1
+        total_crops = crops_per_seq * crops_per_seq #--> this indicates how many pairs of (i,j) should we have for this protein alone
+        #print(total_crops)
+
+        padded_primary = pad_primary(primary, stride*crops_per_seq)
+        padded_tertiary = pad_tertiary(distance_map, stride*crops_per_seq)
+        padded_mask = pad_mask(ter_mask, stride*crops_per_seq)
+
+        #ready to use data
+        primary_2D = widen_seq(padded_primary)
+        #distogram = to_distogram(padded_tertiary, 2, 22, 64)
+
+        batches = create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride)
+        print(len(batches))
+        break
