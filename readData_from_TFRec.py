@@ -126,6 +126,21 @@ def widen_pssm(pssm, seq):
 
     return np.array(tensor)
 
+
+def create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride):
+    per_axis_crops = total_crops/2
+    batches = []
+    for x in range(0,primary_2D.shape[0],stride):
+        for y in range(0,primary_2D.shape[0],stride):
+            primary_2D_crop = primary_2D[x:x+stride, y:y+stride, :]
+            padded_tertiary_crop = padded_tertiary[x:x+stride, y:y+stride]
+            distogram_crop = to_distogram(padded_tertiary_crop, 2, 22, 64)
+            mask_crop = padded_mask[x:x+stride, y:y+stride]
+            batches.append((primary_2D_crop, distogram_crop, mask_crop))
+
+    return batches
+
+
 if __name__ == '__main__':
     # add your test flag here and put it below
     tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
@@ -139,6 +154,7 @@ if __name__ == '__main__':
         if len(primary) % stride > 0:
             crops_per_seq += 1
         total_crops = crops_per_seq * crops_per_seq #--> this indicates how many pairs of (i,j) should we have for this protein alone
+        #print(total_crops)
 
         padded_primary = pad_primary(primary, stride*crops_per_seq)
         padded_tertiary = pad_tertiary(distance_map, stride*crops_per_seq)
@@ -146,5 +162,8 @@ if __name__ == '__main__':
 
         #ready to use data
         primary_2D = widen_seq(padded_primary)
-        distogram = to_distogram(padded_tertiary, 2, 22, 64)
+        #distogram = to_distogram(padded_tertiary, 2, 22, 64)
+
+        batches = create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride)
+        print(len(batches))
         break
