@@ -36,7 +36,6 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
     values = np.argmax(output, axis=3)
     for batch in range(distance_maps.shape[0]):
         distance_maps[batch] = bins[values[batch]]
-        #distance_maps[batch] = (bins[values[batch]] + bins[values[batch] + 1]) / 2
 
     return distance_maps
 
