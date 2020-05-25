@@ -93,7 +93,7 @@ def to_distogram(distance_map, min, max, num_bins):
     #print(distance_map)
     distance_map = np.clip(distance_map, a_min=min, a_max=max)
     distance_map = np.int32(np.floor((num_bins-1)*(distance_map-min)/(histo_range)))
-    print(distance_map)
+    #print(distance_map)
     distogram = np.eye(num_bins)[distance_map]
 
     return(distogram)
