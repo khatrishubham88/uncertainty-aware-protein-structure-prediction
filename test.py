@@ -1,9 +1,11 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 import time
+
 from readData_from_TFRec import widen_seq, parse_dataset, NUM_AAS, NUM_EVO_ENTRIES, NUM_DIMENSIONS
 from network import ResNet
 from tqdm import tqdm
+
 
 def widen_seq_unoptimized(seq):
     key = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
