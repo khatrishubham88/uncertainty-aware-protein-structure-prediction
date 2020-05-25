@@ -128,7 +128,6 @@ def widen_pssm(pssm, seq):
 
 
 def create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride):
-    per_axis_crops = total_crops/2
     batches = []
     for x in range(0,primary_2D.shape[0],stride):
         for y in range(0,primary_2D.shape[0],stride):
