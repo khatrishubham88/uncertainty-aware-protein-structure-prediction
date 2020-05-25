@@ -133,7 +133,6 @@ if __name__ == '__main__':
     # test function for the optimized function
     for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
         print(len(primary))
-        primary_2D = widen_seq(primary)
         distance_map = calc_pairwise_distances(tertiary)
 
         crops_per_seq = len(primary) // stride #--> stride = 64
@@ -145,5 +144,6 @@ if __name__ == '__main__':
         padded_tertiary = pad_tertiary(distance_map, stride*crops_per_seq)
         padded_mask = pad_mask(ter_mask, stride*crops_per_seq)
 
-        distogram = to_distogram(distance_map, 2, 22, 64)
+        primary_2D = widen_seq(padded_primary)
+        distogram = to_distogram(padded_tertiary, 2, 22, 64)
         break
