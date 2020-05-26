@@ -56,7 +56,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         """
         Needs correction
         """
-        return next(self)
+        raise NotImplementedError('No implemented yet.')
     
     def __iter__(self):
         self.construct_feeder()
