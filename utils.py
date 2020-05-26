@@ -32,10 +32,10 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
     output = K.eval(output)
     distance_maps = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
 
-    bins = np.linspace(min_angstrom, max_angstrom, num_bins + 1)
+    bins = np.linspace(min_angstrom, max_angstrom, num_bins)
     values = np.argmax(output, axis=3)
     for batch in range(distance_maps.shape[0]):
-        distance_maps[batch] = (bins[values[batch]] + bins[values[batch] + 1]) / 2
+        distance_maps[batch] = bins[values[batch]]
 
     return distance_maps
 
@@ -66,7 +66,7 @@ def pad_primary(tensor, shape):
 
 def pad_tertiary(tensor, shape):
     curr_length = tensor.shape[0]
-    padded_tensor = np.zeros(shape=(shape, shape))
+    padded_tensor = np.zeros(shape=shape)
     padded_tensor[0:curr_length, 0:curr_length] = tensor
 
     return padded_tensor
@@ -74,7 +74,7 @@ def pad_tertiary(tensor, shape):
 
 def pad_mask(tensor, shape):
     curr_length = tensor.shape[0]
-    padded_tensor = np.zeros(shape=(shape,shape))
+    padded_tensor = np.zeros(shape=shape)
     padded_tensor[0:curr_length, 0:curr_length] = tensor
 
     return padded_tensor
