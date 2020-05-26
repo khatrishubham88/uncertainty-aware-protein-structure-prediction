@@ -152,13 +152,13 @@ Input: distance_map: LxL distance matrx in angstrom
        max: maximum value for the histogram in angstrom
        num_bins: integer number
 """
-def to_distogram(distance_map, min, max, num_bins):
-    assert min >= 0.0
-    assert max > 0.0
-    histo_range = max-min
+def to_distogram(distance_map, min_val, max_val, num_bins):
+    assert min_val >= 0.0
+    assert max_val > 0.0
+    histo_range = max_val-min_val
 
-    distance_map = np.clip(distance_map, a_min=min, a_max=max)
-    distance_map = np.int32(np.floor((num_bins-1)*(distance_map-min)/(histo_range)))
+    distance_map = np.clip(distance_map, a_min=min_val, a_max=max_val)
+    distance_map = np.int32(np.floor((num_bins-1)*(distance_map-min_val)/(histo_range)))
     distogram = np.eye(num_bins)[distance_map]
 
     return distogram

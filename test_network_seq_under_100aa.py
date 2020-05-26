@@ -8,16 +8,17 @@ from readData_from_TFRec import widen_seq, parse_dataset
 from tqdm import tqdm
 from utils import expand_dim, calc_pairwise_distances, to_distogram, load_npy_binary, output_to_distancemaps
 from utils import pad_mask, pad_primary, pad_tertiary, masked_categorical_cross_entropy
+import psutil
 
 def main():
-    #paths = []
-    #for i in range(1, 136):
-    #    paths.append('P:/casp7/casp7/training/100/' + str(i))
-    #X, mask, y = gather_data_seq_under_limit(paths, 64)
+    paths = []
+    for i in range(1, 136):
+       paths.append('../proteinnet/data/casp7/training/100/' + str(i))
+    X, mask, y = gather_data_seq_under_limit(paths, 64)
 
-    X = load_npy_binary(path='P:/casp7/casp7/seq_64.npy')
-    mask = load_npy_binary(path='P:/casp7/casp7/mask_64.npy')
-    y = load_npy_binary(path='P:/casp7/casp7/tertiary_64.npy')
+    # X = load_npy_binary(path='P:/casp7/casp7/seq_64.npy')
+    # mask = load_npy_binary(path='P:/casp7/casp7/mask_64.npy')
+    # y = load_npy_binary(path='P:/casp7/casp7/tertiary_64.npy')
 
     print('Shape of input data: ' + str(X.shape))
     print('Shape of mask ' + str(mask.shape))
@@ -87,7 +88,8 @@ def gather_data_seq_under_limit(paths, seq_limit):
     tertiary_list = []
     mask_list = []
     desired_shape = (seq_limit, seq_limit)
-
+    usage = dict(psutil.virtual_memory()._asdict())
+    initial_usage = usage["used"]/1073741824
     for path in paths:
         for primary, evolutionary, tertiary, ter_mask in tqdm(parse_dataset(path)):
             if primary.shape[0] == desired_shape[0]:
@@ -96,18 +98,20 @@ def gather_data_seq_under_limit(paths, seq_limit):
                 primary_list.append(wide_seq)
                 tertiary = calc_pairwise_distances(tertiary)
                 tertiary = pad_tertiary(tertiary, desired_shape)
-                tertiary = to_distogram(tertiary, min=2, max=22, num_bins=64)
+                tertiary = to_distogram(tertiary, min_val=2, max_val=22, num_bins=64)
                 tertiary_list.append(tertiary)
-                mask = pad_mask(ter_mask, desired_shape)
-                mask_list.append(mask)
+                ter_mask = pad_mask(ter_mask, desired_shape)
+                mask_list.append(ter_mask)
 
     batch_primary = expand_dim(primary_list)
     batch_tertiary = expand_dim(tertiary_list)
     batch_mask = expand_dim(mask_list)
-
-    np.save('P:/casp7/casp7/seq_' + str(desired_shape[0]), batch_primary.numpy())
-    np.save('P:/casp7/casp7/tertiary_' + str(desired_shape[0]), batch_tertiary.numpy())
-    np.save('P:/casp7/casp7/mask_' + str(desired_shape[0]), batch_mask.numpy())
+    usage = dict(psutil.virtual_memory()._asdict())
+    final_usage = usage["used"]/1073741824
+    print("total consumption = %f"%(final_usage-initial_usage))
+    # np.save('P:/casp7/casp7/seq_' + str(desired_shape[0]), batch_primary.numpy())
+    # np.save('P:/casp7/casp7/tertiary_' + str(desired_shape[0]), batch_tertiary.numpy())
+    # np.save('P:/casp7/casp7/mask_' + str(desired_shape[0]), batch_mask.numpy())
 
     return batch_primary, batch_mask, batch_tertiary
 

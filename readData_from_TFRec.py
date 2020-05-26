@@ -133,9 +133,9 @@ def create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride):
         for y in range(0,primary_2D.shape[0],stride):
             primary_2D_crop = primary_2D[x:x+stride, y:y+stride, :]
             padded_tertiary_crop = padded_tertiary[x:x+stride, y:y+stride]
-            distogram_crop = to_distogram(padded_tertiary_crop, 2, 22, 64)
+            # padded_tertiary_crop = to_distogram(padded_tertiary_crop, 2, 22, 64)
             mask_crop = padded_mask[x:x+stride, y:y+stride]
-            batches.append((primary_2D_crop, distogram_crop, mask_crop))
+            batches.append((primary_2D_crop, padded_tertiary_crop, mask_crop))
 
     return batches
 
