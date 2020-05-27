@@ -40,21 +40,6 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
     return distance_maps
 
 
-def pad_tensor(tensor, shape):
-    if isinstance(shape, int):
-        shape = tuple([shape])
-    else:
-        shape = tuple(shape)
-    dim = len(shape)
-    padded_tensor = np.zeros(shape)
-    if dim == 1:
-        padded_tensor[0:tensor.shape[0]] = tensor
-    elif dim == 2:
-        padded_tensor[0:tensor.shape[0], 0:tensor.shape[0]] = tensor
-
-    return padded_tensor
-
-
 def pad_primary(tensor, shape):
     #AA space is betwen 0-19 --> paddings have Id 20
     curr_length = tensor.shape[0]

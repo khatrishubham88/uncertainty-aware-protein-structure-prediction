@@ -11,8 +11,8 @@ To-Do List:
 
 
 class ResNet:
-    def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
-                 non_linearity='elu', dropout_rate=1.0):
+    def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, callbacks, learning_rate,
+                 batch_size=64, crop_size=64, non_linearity='elu', dropout_rate=1.0,):
         super(ResNet, self).__init__()
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
@@ -23,6 +23,8 @@ class ResNet:
         self.num_blocks = num_blocks
         self.num_channels = num_channels
         self.dilation = dilation
+        self.callbacks = callbacks
+        self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.non_linearity = non_linearity
         self.dropout_rate = dropout_rate
