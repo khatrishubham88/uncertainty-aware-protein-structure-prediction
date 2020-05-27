@@ -16,8 +16,7 @@ def masked_categorical_cross_entropy(mask):
         y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
         loss = tf.keras.losses.CategoricalCrossentropy()
         l = loss(y_true, y_pred) * mask
-        print(l.shape)
-        l = K.sum(K.sum(K.sum(l)))
+        l = K.sum(K.sum(K.sum(l))) / (l.shape[0] * l.shape[1] * l.shape[2])
 
         return l
 

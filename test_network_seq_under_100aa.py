@@ -21,9 +21,9 @@ def main():
     mask = load_npy_binary(path='/storage/remote/atcremers45/s0237/casp7/training/mask64.npy')
     y = load_npy_binary(path='/storage/remote/atcremers45/s0237/casp7/training/tertiary64.npy')
 
-    mask = K.expand_dims(mask, axis=3)
-    mask = K.repeat_elements(mask, y.shape[3], axis=3)
-    mask = tf.transpose(mask, perm=(0, 3, 1, 2))
+    #mask = K.expand_dims(mask, axis=3)
+    #mask = K.repeat_elements(mask, y.shape[3], axis=3)
+    #mask = tf.transpose(mask, perm=(0, 3, 1, 2))
 
     print('Shape of input data: ' + str(X.shape))
     print('Shape of mask ' + str(mask.shape))
@@ -51,14 +51,14 @@ def main():
 
     # Instantiate ResNet model
     nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
-                batch_size=2, crop_size=64, dropout_rate=0.15)
+                batch_size=16, crop_size=64, dropout_rate=0.15)
     model = nn.model()
-    model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.001),
-                  loss=tf.keras.losses.CategoricalCrossentropy())
-    model_hist = model.fit(X[0:32], y[0:32]*mask[0:32], batch_size=2, epochs=100, validation_split=0.2)
+    model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.0005),
+                  loss=masked_categorical_cross_entropy(mask[0:16]))
+    model_hist = model.fit(X[0:16], y[0:16], batch_size=16, epochs=100, validation_split=0.2)
     print(model_hist.history)
 
-    model.save("/usr/prakt/s0237/pcss20-proteinfolding/models/tests/seq_equal_64/keras_loss/masked_model_b2_32s.h5")
+    model.save("/usr/prakt/s0237/pcss20-proteinfolding/models/tests/seq_equal_64/custom_loss/masked_model_b16_16s.h5")
 
     """
     test = model.predict(X[0:32])
