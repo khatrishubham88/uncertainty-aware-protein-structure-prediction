@@ -74,7 +74,7 @@ def pad_tertiary(tensor, shape):
 
 def pad_mask(tensor, shape):
     curr_length = tensor.shape[0]
-    padded_tensor = np.zeros(shape=(shape,shape))
+    padded_tensor = np.zeros(shape=shape)
     padded_tensor[0:curr_length, 0:curr_length] = tensor
 
     return padded_tensor
