@@ -10,16 +10,14 @@ from utils import expand_dim, calc_pairwise_distances, to_distogram, load_npy_bi
 from utils import pad_mask, pad_primary, pad_tertiary, masked_categorical_cross_entropy
 
 def main():
-    """
-    paths = []
-    for i in range(1, 136):
-        paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
-    X, mask, y = gather_data_seq_under_limit(paths, 64)
-    """
+    #paths = []
+    #for i in range(1, 136):
+    #    paths.append('P:/casp7/casp7/training/100/' + str(i))
+    #X, mask, y = gather_data_seq_under_limit(paths, 64)
 
-    X = load_npy_binary(path='/storage/remote/atcremers45/s0237/casp7/training/seq64.npy')
-    mask = load_npy_binary(path='/storage/remote/atcremers45/s0237/casp7/training/mask64.npy')
-    y = load_npy_binary(path='/storage/remote/atcremers45/s0237/casp7/training/tertiary64.npy')
+    X = load_npy_binary(path='P:/casp7/casp7/seq_equal64.npy')
+    mask = load_npy_binary(path='P:/casp7/casp7/mask_equal64.npy')
+    y = load_npy_binary(path='P:/casp7/casp7/tertiary_equal64.npy')
 
     #mask = K.expand_dims(mask, axis=3)
     #mask = K.repeat_elements(mask, y.shape[3], axis=3)
@@ -30,25 +28,6 @@ def main():
     print('Shape of ground truth: ' + str(y.shape))
 
     """
-    distance_maps = output_to_distancemaps(y, 2, 22, 64)
-
-    plt.figure()
-    plt.subplot(121)
-    plt.title("Ground Truth")
-    plt.imshow(mask[10], cmap='viridis_r')
-    plt.colorbar()
-    plt.subplot(122)
-    plt.imshow(distance_maps[10], cmap='viridis_r')
-    plt.colorbar()
-    plt.show()
-
-    K.clear_session()
-    model = tf.keras.models.load_model('P:/proteinfolding_alphafold/models/test_28_with_64_4.h5', compile=False)
-
-    distance_maps = output_to_distancemaps(y, 2, 22, 64)
-    test = model(X[0:64])
-    """
-
     # Instantiate ResNet model
     nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
                 batch_size=16, crop_size=64, dropout_rate=0.15)
@@ -61,45 +40,40 @@ def main():
     model.save("/usr/prakt/s0237/pcss20-proteinfolding/models/tests/seq_equal_64/custom_loss/masked_model_b16_16s.h5")
 
     """
+
+    K.clear_session()
+    model = tf.keras.models.load_model(
+        'P:/proteinfolding_alphafold/models/tests/seq_equal_64/keras_loss/masked_model_b2_32s.h5',
+        compile=False)
+
+    out = model.predict(X[0:64])
+    distance_maps = output_to_distancemaps(out, 2, 22, 64)
+    ground_truth = output_to_distancemaps(y, 2, 22, 64)
+
     test = model.predict(X[0:32])
     test = output_to_distancemaps(test, 2, 22, 64)
 
     plt.figure()
-    plt.subplot(131)
-    plt.title("Ground Truth")
+    plt.subplot(231)
+    plt.title("Prediction")
     plt.imshow(distance_maps[0], cmap='viridis_r')
-    plt.subplot(132)
-    plt.title("Prediction by model")
-    plt.imshow(test[0], cmap='viridis_r')
-    plt.subplot(133)
-    plt.title("Prediction by model")
-    plt.imshow(mask[0], cmap='viridis_r')
+    plt.subplot(232)
+    plt.title("Prediction")
+    plt.imshow(distance_maps[1], cmap='viridis_r')
+    plt.subplot(233)
+    plt.title("Prediction")
+    plt.imshow(distance_maps[2], cmap='viridis_r')
+    plt.subplot(234)
+    plt.title("Ground Truth")
+    plt.imshow(ground_truth[0], cmap='viridis_r')
+    plt.subplot(235)
+    plt.title("Ground Truth")
+    plt.imshow(ground_truth[1], cmap='viridis_r')
+    plt.subplot(236)
+    plt.title("Ground Truth")
+    plt.imshow(ground_truth[2], cmap='viridis_r')
     plt.show()
 
-    plt.figure()
-    plt.subplot(131)
-    plt.title("Ground Truth")
-    plt.imshow(distance_maps[10], cmap='viridis_r')
-    plt.subplot(132)
-    plt.title("Prediction by model")
-    plt.imshow(test[10], cmap='viridis_r')
-    plt.subplot(133)
-    plt.title("Prediction by model")
-    plt.imshow(mask[10], cmap='viridis_r')
-    plt.show()
-
-    plt.figure()
-    plt.subplot(131)
-    plt.title("Ground Truth")
-    plt.imshow(distance_maps[20], cmap='viridis_r')
-    plt.subplot(132)
-    plt.title("Prediction by model")
-    plt.imshow(test[20], cmap='viridis_r')
-    plt.subplot(133)
-    plt.title("Prediction by model")
-    plt.imshow(mask[20], cmap='viridis_r')
-    plt.show()
-    """
 
 def gather_data_seq_under_limit(paths, seq_limit):
     primary_list = []
