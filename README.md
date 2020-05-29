@@ -12,6 +12,10 @@
 * [AlphaFold Pytorch](https://github.com/Urinx/alphafold_pytorch)
 * [Open Protein](https://github.com/biolib/openprotein)
 
+# Custom Training Process
+* [Tensorflow Method Tutorial](https://www.tensorflow.org/tutorials/customization/custom_training_walkthrough)
+* [Tensorflow Method](https://www.tensorflow.org/tutorials/customization/custom_training)
+
 # Input Pipeline Repo
 * [Minifold](https://github.com/EricAlcaide/MiniFold)
 * [ProSPR](https://github.com/dellacortelab/prospr); [Reference Paper](https://www.biorxiv.org/content/10.1101/830273v2.full.pdf)
