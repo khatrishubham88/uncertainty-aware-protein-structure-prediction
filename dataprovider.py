@@ -8,13 +8,13 @@ from readData_from_TFRec import widen_seq, parse_tfexample, create_protein_batch
 import glob
 import math
 
-class DataGenerator(tf.keras.utils.Sequence):
+class DataGenerator(object):
     'Generates data for Keras'
     def __init__(self, path: list, dim=(64,64), datasize=None, features="primary", 
                  padding_value=-1, minimum_bin_val=2, 
                  maximum_bin_val=22, num_bins=64, 
                  batch_size=100, shuffle=False, 
-                 shuffle_buffer_size=None, random_crop=False, take=None):
+                 shuffle_buffer_size=None, random_crop=False, take=None, flattening=True):
         'Initialization'
         self.path = path
         self.raw_dataset = tf.data.TFRecordDataset(self.path)
@@ -29,6 +29,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.num_bins = num_bins
         self.random_crop = random_crop
         self.take = take
+        self.flattening = flattening
         self.datasize = None
         if datasize is not None:
             self.datasize = datasize
@@ -69,12 +70,18 @@ class DataGenerator(tf.keras.utils.Sequence):
         
              
     def construct_feeder(self):
+        def flat_map(primary, secondary, mask):
+            return (primary, secondary, tf.reshape(mask, shape=(-1,)))
+        
         self.datafeeder = tf.data.Dataset.from_generator(self.transformation_generator, 
                                                          output_types=(tf.float32, tf.float32, tf.float32),
-                                                         output_shapes= ((None, None, None, ),
-                                                                         (None, None, None, ),
-                                                                         (None, None, )))
+                                                        #  output_shapes= ((None, None, None, ),
+                                                        #                  (None, None, None, ),
+                                                        #                  (None, None, ))
+                                                         )
         self.datafeeder = self.datafeeder.batch(self.batch_size)
+        if self.flattening:
+            self.datafeeder = self.datafeeder.map(lambda x, y, z: flat_map(x, y, z))
         if self.take is not None:
             self.datafeeder = self.datafeeder.take(self.take)
     
@@ -92,7 +99,8 @@ class DataGenerator(tf.keras.utils.Sequence):
                                                     padding_value=self.padding_value, 
                                                     minimum_bin_val=self.minimum_bin_val, 
                                                     maximum_bin_val=self.maximum_bin_val, 
-                                                    num_bins=self.num_bins)
+                                                    num_bins=self.num_bins
+                                                    )
             for subset in transformed_batch:
                 yield subset # has values (primary, tertiary, tertiary mask)
     
@@ -146,35 +154,45 @@ class DataGenerator(tf.keras.utils.Sequence):
             batches = create_protein_batches(primary, tertiary, tertiary_mask, stride)
             # transform teritiary to distogram
             for i in range(len(batches)):
+                # convert distance map to distogram
                 dist_tertiary = to_distogram(batches[i][1], min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
                 dist_tertiary = tf.convert_to_tensor(dist_tertiary, dtype=tertiary.dtype)
                 dist_tertiary = K.cast_to_floatx(dist_tertiary)
+
                 batches[i] = (batches[i][0], dist_tertiary, batches[i][2])
             return batches
         else:
             tertiary = to_distogram(tertiary, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
             tertiary = tf.convert_to_tensor(tertiary, dtype=tertiary.dtype)
             tertiary = K.cast_to_floatx(tertiary)
+            
             return ([(primary, tertiary, tertiary_mask)])
         
 if __name__=="__main__":
     path = glob.glob("../proteinnet/data/casp7/training/100/*")
     params = {
-    "dim":(64,64), # this is the LxL
+    "dim":(10,10), # this is the LxL
     "datasize":None, 
     "features":"primary", # this will decide the number of channel, with primary 20, secondary 20+something
     "padding_value":-1, # value to use for padding the sequences, mask is padded by 0 only
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
     "num_bins":64,         # num of bins to use
-    "batch_size":100,       # batch size for training, check if this is needed here or should be done directly in fit?
+    "batch_size":1,       # batch size for training, check if this is needed here or should be done directly in fit?
     "shuffle":False,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":False         # if cropping should be random, this has to be implemented later
+    "random_crop":False,         # if cropping should be random, this has to be implemented later
+    "flattening" : True,        # if flattten the mask
     }
     dataprovider = DataGenerator(path, **params)
     num_data_points = 0
     for count in dataprovider:
         # print(len(count))
+        # print(count[1].shape)
+        # print(count[2].shape)
+        # sh = count[1].shape[0:-1]
+        # print(sh)
+        reshaped_test = tf.reshape(count[2], shape=sh)
+        print(reshaped_test)
         num_data_points += 1
     print(num_data_points)

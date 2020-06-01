@@ -1,6 +1,6 @@
 from tensorflow.keras import Model, Input
 from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
-
+from trainable_model import CustomModel
 
 """
 To-Do List:
@@ -10,7 +10,7 @@ To-Do List:
 """
 
 
-class ResNet:
+class ResNet():
     def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
                  non_linearity='elu', dropout_rate=1.0):
         super(ResNet, self).__init__()
@@ -66,9 +66,10 @@ class ResNet:
                         x = self.make_layer()[0](x)
 
         out = Softmax(axis=3, name='softmax_layer')(x)
-        distance_pred_resnet = Model(inputs, out, name='AlphaFold_Distance_Prediction_Model')
+        distance_pred_resnet = CustomModel(inputs, out, name='AlphaFold_Distance_Prediction_Model')
 
         return distance_pred_resnet
+    
 
     def make_layer(self, first='False'):
         layers = []
