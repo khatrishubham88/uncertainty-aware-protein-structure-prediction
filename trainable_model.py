@@ -31,9 +31,9 @@ class CustomModel(keras.Model):
             loss = self.compiled_loss(y, y_pred)
             # Reshape sample weights
             new_shape = array_ops.shape(y)
-            tf.print(new_shape)
+            # tf.print(new_shape)
             new_shape = new_shape[0:-1]
-            tf.print(new_shape)
+            # tf.print(new_shape)
             mask = tf.reshape(sw, shape=new_shape)
             # mask = K.variable(mask)
             loss = loss*mask
@@ -71,12 +71,12 @@ if __name__=="__main__":
     # "take" : 128,
     }
     dataprovider = DataGenerator(path, **params).datafeeder
-    for i in dataprovider.take(10):
-        print (i)
-    print(dataprovider)
+    # for i in dataprovider.take(10):
+    #     print (i)
+    # print(dataprovider)
     K.clear_session()
     nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
-                batch_size=16, crop_size=64, dropout_rate=0.15)
+                batch_size=params.batch_size, crop_size=params.dim[0], dropout_rate=0.15)
     model = nn.model()
     
     model = CustomModel(model)

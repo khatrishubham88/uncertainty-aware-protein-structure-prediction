@@ -14,7 +14,7 @@ class DataGenerator(object):
                  padding_value=-1, minimum_bin_val=2, 
                  maximum_bin_val=22, num_bins=64, 
                  batch_size=100, shuffle=False, 
-                 shuffle_buffer_size=None, random_crop=False, take=None, flattening=True):
+                 shuffle_buffer_size=None, random_crop=False, take=None, flattening=True, epochs=None):
         'Initialization'
         self.path = path
         self.raw_dataset = tf.data.TFRecordDataset(self.path)
@@ -30,6 +30,7 @@ class DataGenerator(object):
         self.random_crop = random_crop
         self.take = take
         self.flattening = flattening
+        self.epochs = epochs
         self.datasize = None
         if datasize is not None:
             self.datasize = datasize
@@ -84,6 +85,8 @@ class DataGenerator(object):
             self.datafeeder = self.datafeeder.map(lambda x, y, z: flat_map(x, y, z))
         if self.take is not None:
             self.datafeeder = self.datafeeder.take(self.take)
+        if self.epochs is not None:
+            self.datafeeder = self.datafeeder.repeat(self.epochs)
     
     def fetch_datasize(self):
         count = 0
