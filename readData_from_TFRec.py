@@ -9,6 +9,10 @@ NUM_AAS = 20
 NUM_DIMENSIONS = 3
 NUM_EVO_ENTRIES = 21
 
+N = 20
+key = np.arange(start=0,stop=N,step=1)
+enc = OneHotEncoder(handle_unknown='error')
+enc.fit(key.reshape(-1,1))
 
 def masking_matrix(input_mask):
     """ Constructs a masking matrix to zero out pairwise distances due to missing residues or padding.
@@ -75,14 +79,11 @@ def widen_seq(seq):
      'K': '8', 'L': '9', 'M': '10', 'N': '11', 'P': '12', 'Q': '13', 'R': '14', 'S': '15', 'T': '16', 'V': '17', 'W': '18', 'Y': '19'}
     """
     """ Converts a seq into a one-hot tensor. Not LxN but LxLxN"""
+    global N, enc, key
     L = seq.shape[0]
-    N = 20
-    key = np.arange(start=0,stop=N,step=1)
     wide_tensor = np.zeros(shape=(L,L,N))
     proto_seq = tf.make_tensor_proto(seq)
     numpy_seq = tf.make_ndarray(proto_seq)
-    enc = OneHotEncoder(handle_unknown='error')
-    enc.fit(key.reshape(-1,1))
     encoding = enc.transform(key.reshape(-1,1)).toarray()
     for i in range(N):
         pos = np.argwhere(numpy_seq==i)

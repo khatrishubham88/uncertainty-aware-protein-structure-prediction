@@ -24,6 +24,16 @@ def masked_categorical_cross_entropy(mask):
 
     return loss
 
+def masked_categorical_cross_entropy_test():
+    # mask = K.variable()
+    kerasloss = tf.keras.losses.CategoricalCrossentropy()
+
+    def loss(y_true, y_pred):
+        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+        l = kerasloss(y_true, y_pred)
+        return l
+
+    return loss
 
 def expand_dim(low_dim_tensor):
     return K.stack(low_dim_tensor, axis=0)
