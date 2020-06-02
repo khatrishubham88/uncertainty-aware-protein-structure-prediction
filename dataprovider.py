@@ -14,7 +14,7 @@ class DataGenerator(object):
                  padding_value=-1, minimum_bin_val=2,
                  maximum_bin_val=22, num_bins=64,
                  batch_size=100, shuffle=False,
-                 shuffle_buffer_size=None, random_crop=False, take=None, flattening=True):
+                 shuffle_buffer_size=None, random_crop=False, take=None, flattening=True, epochs=1):
         'Initialization'
         self.path = path
         self.raw_dataset = tf.data.TFRecordDataset(self.path)
@@ -30,6 +30,7 @@ class DataGenerator(object):
         self.take = take
         self.flattening = flattening
         self.datasize = None
+        self.epochs = epochs
         if datasize is not None:
             self.datasize = datasize
         else:
@@ -83,6 +84,7 @@ class DataGenerator(object):
             self.datafeeder = self.datafeeder.map(lambda x, y, z: flat_map(x, y, z))
         if self.take is not None:
             self.datafeeder = self.datafeeder.take(self.take)
+        self.datafeeder = self.datafeeder.repeat(self.epochs)
 
     def fetch_datasize(self):
         count = 0
@@ -134,8 +136,9 @@ if __name__=="__main__":
     "batch_size":1,       # batch size for training, check if this is needed here or should be done directly in fit?
     "shuffle":False,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":True         # if cropping should be random, this has to be implemented later
-    "flattening"=True
+    "random_crop":True,         # if cropping should be random, this has to be implemented later
+    "flattening":True,
+    "epochs":1
     }
     dataprovider = DataGenerator(path, **params)
     num_data_points = 0
