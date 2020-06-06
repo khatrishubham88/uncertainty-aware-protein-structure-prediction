@@ -47,10 +47,10 @@ class ResNet():
                                                   block_num=block_num, kernel_size=3)
                 for layer in layers_resnet:
                     x = layer(x)
-                if self.dropout_rate < 1.0:
-                    x = Dropout(rate=self.dropout_rate, name='dropout_' + str(idx) + '_' + str(block_num))(x)
                 x = add([x, identity], name='add_' + str(idx) + '_' + str(block_num))
-
+                if self.dropout_rate < 1.0 and ((idx is not len(self.num_blocks)-1) or (block_num is not num_set_blocks-1)):
+                    x = Dropout(rate=self.dropout_rate, name='dropout_' + str(idx) + '_' + str(block_num))(x)
+                
                 if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
                     if self.num_channels[idx] > self.num_channels[idx + 1]:
                         x = Conv2D(filters=self.num_channels[idx + 1], kernel_size=1, strides=1, padding='same',

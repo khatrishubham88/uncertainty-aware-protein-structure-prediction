@@ -3,11 +3,6 @@ import tensorflow as tf
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 import itertools
-from utils import calc_pairwise_distances
-from utils import to_distogram
-from utils import pad_primary
-from utils import pad_mask
-from utils import pad_tertiary
 
 
 NUM_AAS = 20
@@ -126,44 +121,3 @@ def widen_pssm(pssm, seq):
         tensor.append(d2)
 
     return np.array(tensor)
-
-
-def create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride):
-    batches = []
-    for x in range(0,primary_2D.shape[0],stride):
-        for y in range(0,primary_2D.shape[0],stride):
-            primary_2D_crop = primary_2D[x:x+stride, y:y+stride, :]
-            padded_tertiary_crop = padded_tertiary[x:x+stride, y:y+stride]
-            # padded_tertiary_crop = to_distogram(padded_tertiary_crop, 2, 22, 64)
-            mask_crop = padded_mask[x:x+stride, y:y+stride]
-            batches.append((primary_2D_crop, padded_tertiary_crop, mask_crop))
-
-    return batches
-
-
-if __name__ == '__main__':
-    # add your test flag here and put it below
-    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
-    stride = 64
-    # test function for the optimized function
-    for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
-        print(len(primary))
-        distance_map = calc_pairwise_distances(tertiary)
-
-        crops_per_seq = len(primary) // stride #--> stride = 64
-        if len(primary) % stride > 0:
-            crops_per_seq += 1
-        total_crops = crops_per_seq * crops_per_seq #--> this indicates how many pairs of (i,j) should we have for this protein alone
-        #print(total_crops)
-
-        padded_primary = pad_primary(primary, stride*crops_per_seq)
-        padded_tertiary = pad_tertiary(distance_map, stride*crops_per_seq)
-        padded_mask = pad_mask(ter_mask, stride*crops_per_seq)
-
-        #ready to use data
-        primary_2D = widen_seq(padded_primary)
-        #distogram = to_distogram(padded_tertiary, 2, 22, 64)
-
-        batches = create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride)
-        print(len(batches))
-        break
