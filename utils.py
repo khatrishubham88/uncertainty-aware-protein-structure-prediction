@@ -2,22 +2,31 @@ import math
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
-
-from bisect import bisect
+from readData_from_TFRec import widen_seq
 
 
 def load_npy_binary(path):
     return np.load(path)
 
 
-def masked_categorical_cross_entropy(mask):
-    mask = K.variable(mask)
+def masked_categorical_cross_entropy():
     def loss(y_true, y_pred):
         y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
         loss = tf.keras.losses.CategoricalCrossentropy()
-        l = loss(y_true, y_pred) * mask
-        l = K.sum(K.sum(K.sum(l))) / (l.shape[0] * l.shape[1] * l.shape[2])
+        l = loss(y_true, y_pred)
 
+        return l
+
+    return loss
+
+
+def masked_categorical_cross_entropy_test():
+    # mask = K.variable()
+    kerasloss = tf.keras.losses.CategoricalCrossentropy()
+
+    def loss(y_true, y_pred):
+        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+        l = kerasloss(y_true, y_pred)
         return l
 
     return loss
@@ -37,6 +46,21 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
         distance_maps[batch] = bins[values[batch]]
 
     return distance_maps
+
+
+def pad_tensor(tensor, shape):
+    if isinstance(shape, int):
+        shape = tuple([shape])
+    else:
+        shape = tuple(shape)
+    dim = len(shape)
+    padded_tensor = np.zeros(shape)
+    if dim == 1:
+        padded_tensor[0:tensor.shape[0]] = tensor
+    elif dim == 2:
+        padded_tensor[0:tensor.shape[0], 0:tensor.shape[0]] = tensor
+
+    return padded_tensor
 
 
 def pad_primary(tensor, shape):
@@ -95,8 +119,6 @@ def calc_distance(aa1, aa2):
 of two AAs and returns the angstrom distance between them
 input: coord1 [x, y, z], coord2 [x, y, z]
 """
-
-
 def calc_calpha_distance(coord1, coord2):
     C_alpha_distance = math.sqrt(
         (coord2[0] - coord1[0]) ** 2 + (coord2[1] - coord1[1]) ** 2 + (coord2[2] - coord1[2]) ** 2)
@@ -108,8 +130,6 @@ def calc_calpha_distance(coord1, coord2):
 AAs of a protein and returns the distance map in angstrom.
 input: tertiary is a tensor of shape (seq_len, 3)
 """
-
-
 def calc_pairwise_distances(tertiary):
     tertiary_numpy = tertiary.numpy() / 100
     c_alpha_coord = []
@@ -136,13 +156,58 @@ Input: distance_map: LxL distance matrx in angstrom
        max: maximum value for the histogram in angstrom
        num_bins: integer number
 """
-def to_distogram(distance_map, min, max, num_bins):
-    assert min >= 0.0
-    assert max > 0.0
-    histo_range = max-min
+def to_distogram(distance_map, min_val, max_val, num_bins):
+    assert min_val >= 0.0
+    assert max_val > 0.0
+    histo_range = max_val-min_val
 
-    distance_map = np.clip(distance_map, a_min=min, a_max=max)
-    distance_map = np.int32(np.floor((num_bins-1)*(distance_map-min)/(histo_range)))
+    distance_map = np.clip(distance_map, a_min=min_val, a_max=max_val)
+    distance_map = np.int32(np.floor((num_bins-1)*(distance_map-min_val)/(histo_range)))
     distogram = np.eye(num_bins)[distance_map]
 
     return distogram
+
+
+def random_index(primary, crop_size):
+    index = []
+    if primary.shape[0] <= crop_size:
+        index.extend([0, 0])
+    else:
+        index.extend([np.random.randint(0, primary.shape[0] - crop_size),
+                      np.random.randint(0, primary.shape[0] - crop_size)])
+    return index
+
+
+def pad_feature(feature, crop_size, padding_value, padding_size):
+    # pad on left and bottom
+    padding = tf.constant([[0, padding_size]])
+    rank = tf.rank(feature).numpy()
+    padding = tf.repeat(padding, rank, axis=0)
+    padded_feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
+    return padded_feature
+
+def create_crop(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size, minimum_bin_val,
+                    maximum_bin_val, num_bins):
+    #if primary.shape[0] % crop_size != 0:
+    if primary.shape[0] >= crop_size:
+        #padded_primary = pad_feature(primary, crop_size, padding_value, padding_size)
+        #padded_dist_map = pad_feature(dist_map, crop_size, padding_value, padding_size)
+        #padded_ter_mask = pad_feature(tertiary_mask, crop_size, padding_value, padding_size)
+        primary_2D = widen_seq(primary)
+        # create crops from padded 2D features
+        primary_2D_crop = primary_2D[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size,:]
+        dist_map_crop = dist_map[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
+        ter_mask_crop = tertiary_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
+        distogram_crop = to_distogram(dist_map_crop, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
+        return primary_2D_crop, distogram_crop, ter_mask_crop
+
+    else:
+        padded_primary = pad_feature(primary, crop_size, padding_value, padding_size)
+        padded_dist_map = pad_feature(dist_map, crop_size, padding_value, padding_size)
+        padded_ter_mask = pad_feature(tertiary_mask, crop_size, 0, padding_size)
+        primary_2D = widen_seq(padded_primary)
+        primary_2D_crop = primary_2D[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size,:]
+        dist_map_crop = padded_dist_map[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
+        ter_mask_crop = padded_ter_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
+        distogram_crop = to_distogram(dist_map_crop, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
+        return primary_2D_crop, distogram_crop, ter_mask_crop

@@ -2,6 +2,7 @@ import numpy as np
 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Activation, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Input, Softmax
+from tensorflow.keras.layers import Multiply
 
 
 class ResNetBlock(Model):
@@ -55,7 +56,8 @@ class ResNetBlock(Model):
 
 class ResNet(Model):
     def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, learning_rate,
-                 kernel_size=3, batch_size=64, crop_size=64, non_linearity='elu', padding='same', dropout_rate=1.0):
+                 kernel_size=3, batch_size=64, crop_size=64, non_linearity='elu', padding='same', dropout_rate=0.0,
+                 training=False):
         super(ResNet, self).__init__(name='')
         self.input_channels = input_channels
         self.output_channels = output_channels
@@ -69,13 +71,17 @@ class ResNet(Model):
         self.non_linearity = non_linearity
         self.padding = padding
         self.dropout_rate = dropout_rate
+        self.training = training
 
         if (sum(self.num_blocks) % len(self.dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
 
         # Input Layer
-        self.input_layer = Input(shape=(self.crop_size, self.crop_size, self.input_channels),
+        self.input_layer = Input(shape=(self.crop_size, self.crop_size, self.output_channels),
                                  batch_size=self.batch_size, name='input_crop')
+        if self.training:
+            self.mask_input = Input(shape=(self.crop_size, self.crop_size, self.input_channels),
+                                    batch_size=self.batch_size, name='mask_crop')
 
         # Input convolutional and batch normalization layer
         if self.input_channels > self.num_channels[0]:
@@ -94,7 +100,8 @@ class ResNet(Model):
                 self.blocks.append(ResNetBlock(num_filters=self.num_channels[idx], non_linearity=self.non_linearity,
                                                stride=1, padding=self.padding, atou_rate=self.dilation[block_num % 4],
                                                set_block=idx, block_num=block_num, kernel_size=self.kernel_size))
-                if self.dropout_rate < 1.0:
+                if 0.0 < self.dropout_rate < 1.0 and ((idx is not len(self.num_blocks) - 1)
+                                                      or (block_num is not num_set_blocks - 1)):
                     self.blocks.append(Dropout(rate=self.dropout_rate))
 
                 if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
@@ -119,8 +126,12 @@ class ResNet(Model):
 
         # Output Layer
         self.output_layer = Softmax(axis=3, name='softmax_output_layer')
+        self.masking_layer = Multiply(name='masking_layer')
 
-    def call(self, x, training=None):
+    def call(self, inputs, training=None):
+        x = inputs[0]
+        mask = inputs[1]
+
         x = self.conv_scale_in(x)
         x = self.bn_scale_in(x)
 
@@ -128,5 +139,7 @@ class ResNet(Model):
             x = self.blocks[i](x)
 
         out = self.output_layer(x)
+        if self.training:
+            out = self.masking_layer([mask, out])
         
         return out
