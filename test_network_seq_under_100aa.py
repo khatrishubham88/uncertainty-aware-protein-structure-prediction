@@ -4,10 +4,11 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 
 from network_v2 import ResNet
-from readData_from_TFRec import parse_dataset
+from readData_from_TFRec import widen_seq, parse_dataset
 from tqdm import tqdm
 from utils import expand_dim, calc_pairwise_distances, load_npy_binary, to_distogram, output_to_distancemaps
-from utils import pad_mask, pad_primary, pad_tertiary, masked_categorical_cross_entropy, widen_seq
+from utils import pad_mask, pad_primary, pad_tertiary, masked_categorical_cross_entropy
+import psutil
 
 
 def main():
@@ -93,8 +94,8 @@ def gather_data_seq_under_limit(paths, seq_limit):
                 tertiary = pad_tertiary(tertiary, desired_shape)
                 tertiary = to_distogram(tertiary, 2, 22, num_bins=64)
                 tertiary_list.append(tertiary)
-                mask = pad_mask(ter_mask, desired_shape)
-                mask_list.append(mask)
+                ter_mask = pad_mask(ter_mask, desired_shape)
+                mask_list.append(ter_mask)
 
     batch_primary = expand_dim(primary_list)
     batch_tertiary = expand_dim(tertiary_list)

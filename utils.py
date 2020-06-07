@@ -1,20 +1,9 @@
-import glob
-import itertools
 import math
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
+# from readData_from_TFRec import widen_seq
 
-from sklearn.preprocessing import OneHotEncoder
-
-NUM_AAS = 20
-NUM_DIMENSIONS = 3
-NUM_EVO_ENTRIES = 21
-
-N = 20
-key = np.arange(start=0, stop=N, step=1)
-enc = OneHotEncoder(handle_unknown='error')
-enc.fit(key.reshape(-1, 1))
 
 def load_npy_binary(path):
     return np.load(path)
@@ -97,25 +86,6 @@ def pad_mask(tensor, shape):
     padded_tensor[0:curr_length, 0:curr_length] = tensor
 
     return padded_tensor
-
-def widen_seq(seq):
-    """
-    _aa_dict = {'A': '0', 'C': '1', 'D': '2', 'E': '3', 'F': '4', 'G': '5', 'H': '6', 'I': '7',
-     'K': '8', 'L': '9', 'M': '10', 'N': '11', 'P': '12', 'Q': '13', 'R': '14', 'S': '15', 'T': '16', 'V': '17', 'W': '18', 'Y': '19'}
-    """
-    """ Converts a seq into a one-hot tensor. Not LxN but LxLxN"""
-    global N, enc, key
-    L = seq.shape[0]
-    wide_tensor = np.zeros(shape=(L, L, N))
-    proto_seq = tf.make_tensor_proto(seq)
-    numpy_seq = tf.make_ndarray(proto_seq)
-    encoding = enc.transform(key.reshape(-1, 1)).toarray()
-    for i in range(N):
-        pos = np.argwhere(numpy_seq==i)
-        for j,k in itertools.product(pos, repeat=2):
-            wide_tensor[j, k, :] = encoding[i, :]
-    return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
-
 
 """Calculates the distance between two AA
 using three different approaches:
@@ -216,28 +186,19 @@ def pad_feature(feature, crop_size, padding_value, padding_size):
     padded_feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
     return padded_feature
 
-def create_crop(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size, minimum_bin_val,
-                    maximum_bin_val, num_bins):
-    #if primary.shape[0] % crop_size != 0:
-    if primary.shape[0] >= crop_size:
-        #padded_primary = pad_feature(primary, crop_size, padding_value, padding_size)
-        #padded_dist_map = pad_feature(dist_map, crop_size, padding_value, padding_size)
-        #padded_ter_mask = pad_feature(tertiary_mask, crop_size, padding_value, padding_size)
-        primary_2D = widen_seq(primary)
-        # create crops from padded 2D features
-        primary_2D_crop = primary_2D[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size,:]
-        dist_map_crop = dist_map[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        ter_mask_crop = tertiary_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        distogram_crop = to_distogram(dist_map_crop, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
-        return primary_2D_crop, distogram_crop, ter_mask_crop
-
+def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold):
+    padding = tf.constant([[0, padding_size]])
+    empty = tf.constant([[0, 0]])
+    rank = tf.rank(feature).numpy()
+    use_rank = 0
+    if rank>rank_threshold:
+        use_rank = rank_threshold
     else:
-        padded_primary = pad_feature(primary, crop_size, padding_value, padding_size)
-        padded_dist_map = pad_feature(dist_map, crop_size, padding_value, padding_size)
-        padded_ter_mask = pad_feature(tertiary_mask, crop_size, 0, padding_size)
-        primary_2D = widen_seq(padded_primary)
-        primary_2D_crop = primary_2D[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size,:]
-        dist_map_crop = padded_dist_map[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        ter_mask_crop = padded_ter_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        distogram_crop = to_distogram(dist_map_crop, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
-        return primary_2D_crop, distogram_crop, ter_mask_crop
+        use_rank = rank
+    # print(use_rank)
+    padding = tf.repeat(padding, use_rank, axis=0)
+    for _ in range(rank-use_rank):
+        padding = tf.concat([padding, empty], 0)
+    feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
+    return feature
+

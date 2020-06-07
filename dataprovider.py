@@ -1,11 +1,12 @@
 import numpy as np
 import tensorflow as tf
-from utils import calc_pairwise_distances
-from utils import create_crop, random_index
-from readData_from_TFRec import parse_tfexample
+import tensorflow.keras.backend as K
+from utils import expand_dim, calc_pairwise_distances, load_npy_binary, output_to_distancemaps
+from utils import masked_categorical_cross_entropy, random_index
+from readData_from_TFRec import parse_tfexample, create_crop2, create_crop
 import glob
 import math
-
+from tensorflow.python.ops import array_ops
 
 class DataGenerator(object):
     'Generates data for Keras'
@@ -15,7 +16,7 @@ class DataGenerator(object):
                  maximum_bin_val=22, num_bins=64,
                  batch_size=100, shuffle=False,
                  shuffle_buffer_size=None, 
-                 random_crop=False, take=None, 
+                 random_crop=True, take=None, 
                  flattening=True, epochs=1):
         'Initialization'
         self.path = path
@@ -49,8 +50,8 @@ class DataGenerator(object):
         self.datafeeder = None
         self.construct_feeder()
         self.iterator = None
+        self.idx_track = []
         self.__iter__()
-
     def __len__(self):
         'Denotes the number of batches per epoch'
         return int(np.floor(self.datasize / self.batch_size))
@@ -73,6 +74,7 @@ class DataGenerator(object):
 
     def construct_feeder(self):
         def flat_map(primary, secondary, mask):
+            # tf.print(array_ops.shape(mask))
             return (primary, secondary, tf.reshape(mask, shape=(-1,)))
 
         self.datafeeder = tf.data.Dataset.from_generator(self.transformation_generator,
@@ -97,13 +99,14 @@ class DataGenerator(object):
     def transformation_generator(self):
         for data in self.raw_dataset:
             primary, evolutionary, tertiary, ter_mask = parse_tfexample(data)
-            transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
+            transformed_batch, idx = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
                                                     crop_size=self.crop_size,
                                                     padding_value=self.padding_value,
                                                     minimum_bin_val=self.minimum_bin_val,
                                                     maximum_bin_val=self.maximum_bin_val,
                                                     num_bins=self.num_bins,
                                                     random_crop=self.random_crop)
+            self.idx_track.append(idx)
             # for sample in transformed_batch:
             yield transformed_batch # has values (primary, tertiary, tertiary mask)
 
@@ -125,14 +128,14 @@ class DataGenerator(object):
         dist_map = calc_pairwise_distances(tertiary)
         padding_size = math.ceil(primary.shape[0]/crop_size)*crop_size - primary.shape[0]
         # perform cropping + necessary padding
-        random_crop = create_crop(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size,
+        random_crop = create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size,
                                   minimum_bin_val, maximum_bin_val, num_bins)
-        return random_crop
+        return random_crop, index
 
 
 # Used for minor testing of data provider
 if __name__=="__main__":
-    path = glob.glob("../proteinnet/data/casp7/training/100/1")
+    path = glob.glob("../proteinnet/data/casp7/training/100/*")
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
@@ -146,16 +149,28 @@ if __name__=="__main__":
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
     "random_crop":True,         # if cropping should be random, this has to be implemented later
     "flattening":True,
-    "epochs":1
+    "take": 5,
+    "epochs":2
     }
     dataprovider = DataGenerator(path, **params)
     num_data_points = 0
     print(len(dataprovider))
-    for count in dataprovider:
-        print(len(count))
-        print(count[0].shape)
-        print(count[1].shape)
-        print(count[2].shape)
+    tensors = []
+    for i, count in enumerate(dataprovider):
+        # print(len(count))
+        # print(count[0].shape)
+        # print(count[1].shape)
+        # print(count[2].shape)
+        if i>=params["take"]:
+            print(tf.math.equal(tensors[i-params["take"]], count[0]))
+            for i in range(count[0].shape[0]):
+                for j in range(count[0].shape[1]):
+                    for k in range(count[0].shape[2]):
+                        for l in range(count[0].shape[3]):
+                            if tf.math.equal(tensors[i-params["take"]], count[0])[i,j,k,l] is False:
+                                print("old val = {}, new val = {}, at i = {}, j = {}, k = {}, l = {}".format(tensors[i-params["take"]][i,j,k,l], count[0][i,j,k,l], i, j, k, l))
+        else:
+            tensors.append(count[0])
         # print(count[2].shape)
         # sh = count[1].shape[0:-1]
         # print(sh)

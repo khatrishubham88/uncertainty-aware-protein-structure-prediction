@@ -1,6 +1,9 @@
 from network import ResNet
 from dataprovider import DataGenerator
 import matplotlib.pyplot as plt
+import tensorflow as tf
+import tensorflow.keras.backend as K
+import numpy as np
 import glob
 
 from utils import *
@@ -13,12 +16,12 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    path = glob.glob("P:/casp7/casp7/training/100/*")
+    path = glob.glob("P:/casp7/training/100/*")
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
     "features":"primary", # this will decide the number of channel, with primary 20, secondary 20+something
-    "padding_value":-1, # value to use for padding the sequences, mask is padded by 0 only
+    "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
     "num_bins":64,         # num of bins to use
@@ -30,7 +33,6 @@ def main():
     "take":16,
     "epochs":100
     }
-
     dataprovider = DataGenerator(path, **params)
     K.clear_session()
     nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
@@ -48,49 +50,48 @@ def main():
     model_hist = model.fit(dataprovider, # (x, y, mask)
                            epochs=params["epochs"],
                            verbose=1,
-                           steps_per_epoch=num_of_steps,
+                           steps_per_epoch = num_of_steps,
                            callbacks=[callback_lr, callback_es]
                            )
     # model = tf.keras.models.load_model('model_b16_fs.h5', compile=False)
     print(model_hist.history)
-    params["take"] = 15
+    print(dataprovider.idx_track)
+    # params["take"] = 15
     dataprovider = DataGenerator(path, **params)
-    for i in range(params["take"]):
-        if i == 2:
-            X, y, mask = next(dataprovider)
-            break
-    # model.save("model_b16_fs.h5")
-    mask = mask.numpy()
-    y = y.numpy()
-    mask = mask.reshape(y.shape[0:-1])
-    # print(y.shape)
-    # print(mask[0])
-    distance_maps = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
-    test = model.predict(X)
-    test = output_to_distancemaps(test, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
-    plt.figure()
-    plt.subplot(131)
-    plt.title("Ground Truth")
-    plt.imshow(distance_maps[0], cmap='viridis_r')
-    plt.subplot(132)
-    plt.title("Prediction by model")
-    plt.imshow(test[0], cmap='viridis_r')
-    plt.subplot(133)
-    plt.title("mask")
-    plt.imshow(mask[0], cmap='viridis_r')
-    plt.savefig("result.png")
-    for i in range(params["batch_size"]):
+    for j in range(params["take"]):
+        X, y, mask = next(dataprovider)
+        # model.save("model_b16_fs.h5")
+        mask = mask.numpy()
+        y = y.numpy()
+        mask = mask.reshape(y.shape[0:-1])
+        # print(y.shape)
+        # print(mask[0])
+        distance_maps = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
+        test = model.predict(X)
+        test = output_to_distancemaps(test, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
         plt.figure()
         plt.subplot(131)
         plt.title("Ground Truth")
-        plt.imshow(distance_maps[i], cmap='viridis_r')
+        plt.imshow(distance_maps[0], cmap='viridis_r')
         plt.subplot(132)
         plt.title("Prediction by model")
-        plt.imshow(test[i], cmap='viridis_r')
+        plt.imshow(test[0], cmap='viridis_r')
         plt.subplot(133)
         plt.title("mask")
-        plt.imshow(mask[i], cmap='viridis_r')
-        plt.savefig("result"+str(i)+".png")
+        plt.imshow(mask[0], cmap='viridis_r')
+        plt.savefig("result.png")
+        for i in range(params["batch_size"]):
+            plt.figure()
+            plt.subplot(131)
+            plt.title("Ground Truth")
+            plt.imshow(distance_maps[i], cmap='viridis_r')
+            plt.subplot(132)
+            plt.title("Prediction by model")
+            plt.imshow(test[i], cmap='viridis_r')
+            plt.subplot(133)
+            plt.title("mask")
+            plt.imshow(mask[i], cmap='viridis_r')
+            plt.savefig("result_batch_"+str(j)+"_sample_"+str(i)+".png")
 
 
 if __name__=="__main__":
