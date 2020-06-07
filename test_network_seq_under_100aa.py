@@ -4,10 +4,10 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 
 from network_v2 import ResNet
-from readData_from_TFRec import widen_seq, parse_dataset
+from readData_from_TFRec import parse_dataset
 from tqdm import tqdm
 from utils import expand_dim, calc_pairwise_distances, load_npy_binary, to_distogram, output_to_distancemaps
-from utils import pad_mask, pad_primary, pad_tertiary, masked_categorical_cross_entropy
+from utils import pad_mask, pad_primary, pad_tertiary, masked_categorical_cross_entropy, widen_seq
 
 
 def main():

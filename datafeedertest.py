@@ -1,9 +1,6 @@
 from network import ResNet
 from dataprovider import DataGenerator
 import matplotlib.pyplot as plt
-import tensorflow as tf
-import tensorflow.keras.backend as K
-import numpy as np
 import glob
 
 from utils import *
@@ -33,6 +30,7 @@ def main():
     "take":16,
     "epochs":100
     }
+
     dataprovider = DataGenerator(path, **params)
     K.clear_session()
     nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
@@ -50,7 +48,7 @@ def main():
     model_hist = model.fit(dataprovider, # (x, y, mask)
                            epochs=params["epochs"],
                            verbose=1,
-                           steps_per_epoch = num_of_steps,
+                           steps_per_epoch=num_of_steps,
                            callbacks=[callback_lr, callback_es]
                            )
     # model = tf.keras.models.load_model('model_b16_fs.h5', compile=False)

@@ -1,11 +1,11 @@
 import numpy as np
 import tensorflow as tf
-import tensorflow.keras.backend as K
-from utils import expand_dim, calc_pairwise_distances, load_npy_binary, output_to_distancemaps
-from utils import masked_categorical_cross_entropy, create_crop, random_index
+from utils import calc_pairwise_distances
+from utils import create_crop, random_index
 from readData_from_TFRec import parse_tfexample
 import glob
 import math
+
 
 class DataGenerator(object):
     'Generates data for Keras'
