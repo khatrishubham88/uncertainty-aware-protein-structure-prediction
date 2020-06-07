@@ -3,99 +3,81 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
-from network import ResNet
+from network_v2 import ResNet
 from readData_from_TFRec import widen_seq, parse_dataset
 from tqdm import tqdm
-from utils import expand_dim, calc_pairwise_distances, to_distogram, load_npy_binary, output_to_distancemaps
+from utils import expand_dim, calc_pairwise_distances, load_npy_binary, to_distogram, output_to_distancemaps
 from utils import pad_mask, pad_primary, pad_tertiary, masked_categorical_cross_entropy
 import psutil
+
 
 def main():
     """
     paths = []
     for i in range(1, 136):
-        paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
+        paths.append('P:/casp7/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
 
-    X = load_npy_binary(path='/storage/remote/atcremers45/s0237/casp7/training/seq64.npy')
-    mask = load_npy_binary(path='/storage/remote/atcremers45/s0237/casp7/training/mask64.npy')
-    y = load_npy_binary(path='/storage/remote/atcremers45/s0237/casp7/training/tertiary64.npy')
+    X = tf.convert_to_tensor(load_npy_binary(path='P:/casp7/casp7/seq_equal64.npy'))
+    mask = tf.convert_to_tensor(load_npy_binary(path='P:/casp7/casp7/mask_equal64.npy'))
+    y = tf.convert_to_tensor(load_npy_binary(path='P:/casp7/casp7/tertiary_equal64.npy'))
+
+    mask = K.expand_dims(mask, axis=3)
+    mask = K.repeat_elements(mask, y.shape[3], axis=3)
+    mask = tf.transpose(mask, perm=(0, 3, 1, 2))
 
     print('Shape of input data: ' + str(X.shape))
     print('Shape of mask ' + str(mask.shape))
     print('Shape of ground truth: ' + str(y.shape))
-    print(X[10])
 
-    distance_maps = output_to_distancemaps(y, 2, 22, 64)
-
-    plt.figure()
-    plt.subplot(121)
-    plt.title("Ground Truth")
-    plt.imshow(mask[10], cmap='viridis_r')
-    plt.colorbar()
-    plt.subplot(122)
-    plt.imshow(distance_maps[10], cmap='viridis_r')
-    plt.colorbar()
-    plt.show()
-
+    callback_es = tf.keras.callbacks.EarlyStopping('loss', verbose=1, patience=10)
+    callback_lr = tf.keras.callbacks.ReduceLROnPlateau('loss', verbose=1, patience=5)
+    model = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
+                   learning_rate=0.003, kernel_size=3, batch_size=2, crop_size=64, non_linearity='elu', padding='same',
+                   dropout_rate=0.0, training=True)
     """
-    K.clear_session()
-    model = tf.keras.models.load_model('P:/proteinfolding_alphafold/models/test_28_with_64_4.h5', compile=False)
-
-    distance_maps = output_to_distancemaps(y, 2, 22, 64)
-    test = model(X[0:64])
-
-    # Instantiate ResNet model
-
-    nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
-                batch_size=16, crop_size=64, dropout_rate=0.15)
-    model = nn.model()
-    model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.001),
-                  loss=masked_categorical_cross_entropy(mask))
-    model_hist = model.fit(X, y, batch_size=16, epochs=100, validation_split=0.2)
+    tf.keras.utils.plot_model(model, to_file='model.png', show_shapes=True, show_layer_names=True,
+                              rankdir='TB', expand_nested=False, dpi=96)
+    """
+    model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=model.learning_rate),
+                  loss=masked_categorical_cross_entropy())
+    model_hist = model.fit([X[0:32], mask[0:32]], y[0:32], batch_size=2, epochs=250, validation_split=0.2,
+                           callbacks=[callback_lr, callback_es])
     print(model_hist.history)
-    model.save("/usr/prakt/s0237/pcss20-proteinfolding/models/tests/seq_equal_64/custom_loss/model_b16_fs.h5")
+    model.save_weights('P:/proteinfolding_alphafold/new_models/weights')
     
-    test = model.predict(X[0:32])
-    test = output_to_distancemaps(test, 2, 22, 64)
+    K.clear_session()
+    model = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
+                   learning_rate=0.003, kernel_size=3, batch_size=2, crop_size=64, non_linearity='elu', padding='same',
+                   dropout_rate=0.0, training=True)
+    model.load_weights('P:/proteinfolding_alphafold/new_models/weights')
+
+    out = model.predict(X)
+    distance_maps = output_to_distancemaps(out, 2, 22, 64)
+    ground_truth = output_to_distancemaps(y, 2, 22, 64)
 
     plt.figure()
-    plt.subplot(131)
-    plt.title("Ground Truth")
+    plt.subplot(231)
+    plt.title("Prediction")
     plt.imshow(distance_maps[0], cmap='viridis_r')
-    plt.subplot(132)
-    plt.title("Prediction by model")
-    plt.imshow(test[0], cmap='viridis_r')
-    plt.subplot(133)
-    plt.title("Prediction by model")
-    plt.imshow(mask[0], cmap='viridis_r')
+    plt.subplot(232)
+    plt.title("Prediction")
+    plt.imshow(distance_maps[1], cmap='viridis_r')
+    plt.subplot(233)
+    plt.title("Prediction")
+    plt.imshow(distance_maps[2], cmap='viridis_r')
+    plt.subplot(234)
+    plt.title("Ground Truth")
+    plt.imshow(ground_truth[0], cmap='viridis_r')
+    plt.subplot(235)
+    plt.title("Ground Truth")
+    plt.imshow(ground_truth[1], cmap='viridis_r')
+    plt.subplot(236)
+    plt.title("Ground Truth")
+    plt.imshow(ground_truth[2], cmap='viridis_r')
     plt.show()
 
-    plt.figure()
-    plt.subplot(131)
-    plt.title("Ground Truth")
-    plt.imshow(distance_maps[10], cmap='viridis_r')
-    plt.subplot(132)
-    plt.title("Prediction by model")
-    plt.imshow(test[10], cmap='viridis_r')
-    plt.subplot(133)
-    plt.title("Prediction by model")
-    plt.imshow(mask[10], cmap='viridis_r')
-    plt.show()
-
-    plt.figure()
-    plt.subplot(131)
-    plt.title("Ground Truth")
-    plt.imshow(distance_maps[20], cmap='viridis_r')
-    plt.subplot(132)
-    plt.title("Prediction by model")
-    plt.imshow(test[20], cmap='viridis_r')
-    plt.subplot(133)
-    plt.title("Prediction by model")
-    plt.imshow(mask[20], cmap='viridis_r')
-    plt.show()
-    """
 
 def gather_data_seq_under_limit(paths, seq_limit):
     primary_list = []
@@ -110,7 +92,7 @@ def gather_data_seq_under_limit(paths, seq_limit):
                 primary_list.append(wide_seq)
                 tertiary = calc_pairwise_distances(tertiary)
                 tertiary = pad_tertiary(tertiary, desired_shape)
-                tertiary = to_distogram(tertiary, min_val=2, max_val=22, num_bins=64)
+                tertiary = to_distogram(tertiary, 2, 22, num_bins=64)
                 tertiary_list.append(tertiary)
                 ter_mask = pad_mask(ter_mask, desired_shape)
                 mask_list.append(ter_mask)
@@ -124,6 +106,7 @@ def gather_data_seq_under_limit(paths, seq_limit):
     np.save('P:/casp7/casp7/mask_equal' + str(desired_shape[0]), batch_mask.numpy())
 
     return batch_primary, batch_mask, batch_tertiary
+
 
 if __name__ == '__main__':
     main()

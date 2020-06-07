@@ -1,6 +1,6 @@
-from tensorflow.keras import Model, Input
-from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
-
+from tensorflow.keras import Input
+from tensorflow.keras.layers import Activation, Add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
+from trainable_model import CustomModel
 
 """
 To-Do List:
@@ -10,9 +10,9 @@ To-Do List:
 """
 
 
-class ResNet:
+class ResNet():
     def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
-                 non_linearity='elu', dropout_rate=1.0):
+                 non_linearity='elu', dropout_rate=0.0):
         super(ResNet, self).__init__()
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
@@ -47,10 +47,10 @@ class ResNet:
                                                   block_num=block_num, kernel_size=3)
                 for layer in layers_resnet:
                     x = layer(x)
-                if self.dropout_rate < 1.0:
+                x = Add(name='add_' + str(idx) + '_' + str(block_num))([x, identity])
+                if 0.0 < self.dropout_rate < 1.0 and ((idx is not len(self.num_blocks)-1) or (block_num is not num_set_blocks-1)):
                     x = Dropout(rate=self.dropout_rate, name='dropout_' + str(idx) + '_' + str(block_num))(x)
-                x = add([x, identity], name='add_' + str(idx) + '_' + str(block_num))
-
+                
                 if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
                     if self.num_channels[idx] > self.num_channels[idx + 1]:
                         x = Conv2D(filters=self.num_channels[idx + 1], kernel_size=1, strides=1, padding='same',
@@ -66,9 +66,10 @@ class ResNet:
                         x = self.make_layer()[0](x)
 
         out = Softmax(axis=3, name='softmax_layer')(x)
-        distance_pred_resnet = Model(inputs, out, name='AlphaFold_Distance_Prediction_Model')
+        distance_pred_resnet = CustomModel(inputs, out, name='AlphaFold_Distance_Prediction_Model')
 
         return distance_pred_resnet
+    
 
     def make_layer(self, first='False'):
         layers = []

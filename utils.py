@@ -2,23 +2,31 @@ import math
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
-
-from bisect import bisect
+# from readData_from_TFRec import widen_seq
 
 
 def load_npy_binary(path):
     return np.load(path)
 
 
-def masked_categorical_cross_entropy(mask):
-    mask = K.variable(mask)
-
+def masked_categorical_cross_entropy():
     def loss(y_true, y_pred):
         y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
         loss = tf.keras.losses.CategoricalCrossentropy()
-        l = loss(y_true, y_pred) * mask
-        l = K.sum(K.sum(K.sum(l)))
+        l = loss(y_true, y_pred)
 
+        return l
+
+    return loss
+
+
+def masked_categorical_cross_entropy_test():
+    # mask = K.variable()
+    kerasloss = tf.keras.losses.CategoricalCrossentropy()
+
+    def loss(y_true, y_pred):
+        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+        l = kerasloss(y_true, y_pred)
         return l
 
     return loss
@@ -111,8 +119,6 @@ def calc_distance(aa1, aa2):
 of two AAs and returns the angstrom distance between them
 input: coord1 [x, y, z], coord2 [x, y, z]
 """
-
-
 def calc_calpha_distance(coord1, coord2):
     C_alpha_distance = math.sqrt(
         (coord2[0] - coord1[0]) ** 2 + (coord2[1] - coord1[1]) ** 2 + (coord2[2] - coord1[2]) ** 2)
@@ -124,8 +130,6 @@ def calc_calpha_distance(coord1, coord2):
 AAs of a protein and returns the distance map in angstrom.
 input: tertiary is a tensor of shape (seq_len, 3)
 """
-
-
 def calc_pairwise_distances(tertiary):
     tertiary_numpy = tertiary.numpy() / 100
     c_alpha_coord = []
@@ -162,3 +166,39 @@ def to_distogram(distance_map, min_val, max_val, num_bins):
     distogram = np.eye(num_bins)[distance_map]
 
     return distogram
+
+
+def random_index(primary, crop_size):
+    index = []
+    if primary.shape[0] <= crop_size:
+        index.extend([0, 0])
+    else:
+        index.extend([np.random.randint(0, primary.shape[0] - crop_size),
+                      np.random.randint(0, primary.shape[0] - crop_size)])
+    return index
+
+
+def pad_feature(feature, crop_size, padding_value, padding_size):
+    # pad on left and bottom
+    padding = tf.constant([[0, padding_size]])
+    rank = tf.rank(feature).numpy()
+    padding = tf.repeat(padding, rank, axis=0)
+    padded_feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
+    return padded_feature
+
+def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold):
+    padding = tf.constant([[0, padding_size]])
+    empty = tf.constant([[0, 0]])
+    rank = tf.rank(feature).numpy()
+    use_rank = 0
+    if rank>rank_threshold:
+        use_rank = rank_threshold
+    else:
+        use_rank = rank
+    # print(use_rank)
+    padding = tf.repeat(padding, use_rank, axis=0)
+    for _ in range(rank-use_rank):
+        padding = tf.concat([padding, empty], 0)
+    feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
+    return feature
+
