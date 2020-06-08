@@ -50,7 +50,7 @@ class DataGenerator(object):
         self.datafeeder = None
         self.construct_feeder()
         self.iterator = None
-        self.idx_track = []
+        # self.idx_track = []
         self.__iter__()
     def __len__(self):
         'Denotes the number of batches per epoch'
@@ -105,14 +105,14 @@ class DataGenerator(object):
         for data in self.raw_dataset:
             primary, evolutionary, tertiary, ter_mask = parse_tfexample(data)
             # print(primary.shape)
-            transformed_batch, idx = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
+            transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
                                                     crop_size=self.crop_size,
                                                     padding_value=self.padding_value,
                                                     minimum_bin_val=self.minimum_bin_val,
                                                     maximum_bin_val=self.maximum_bin_val,
                                                     num_bins=self.num_bins,
                                                     random_crop=self.random_crop)
-            self.idx_track.append(idx)
+            # self.idx_track.append(idx)
             # for sample in transformed_batch:
             yield transformed_batch # has values (primary, tertiary, tertiary mask)
 
@@ -136,7 +136,7 @@ class DataGenerator(object):
         # perform cropping + necessary padding
         random_crop = create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size,
                                   minimum_bin_val, maximum_bin_val, num_bins)
-        return random_crop, index
+        return random_crop
 
 
 # Used for minor testing of data provider
