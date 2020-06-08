@@ -16,7 +16,7 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    path = glob.glob("P:/casp7/training/100/*")
+    path = glob.glob("P:/casp7/casp7/training/100/*")
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
@@ -50,7 +50,7 @@ def main():
     model_hist = model.fit(dataprovider, # (x, y, mask)
                            epochs=params["epochs"],
                            verbose=1,
-                           steps_per_epoch = num_of_steps,
+                           steps_per_epoch=num_of_steps,
                            callbacks=[callback_lr, callback_es]
                            )
     # model = tf.keras.models.load_model('model_b16_fs.h5', compile=False)

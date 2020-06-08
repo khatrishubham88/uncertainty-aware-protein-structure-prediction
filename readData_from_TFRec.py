@@ -1,13 +1,12 @@
-import os
+import glob
+import itertools
+import math
 import tensorflow as tf
 import numpy as np
+
 from sklearn.preprocessing import OneHotEncoder
-import itertools
-from utils import calc_pairwise_distances
-from utils import to_distogram
-from utils import pad_primary
-from utils import pad_mask
-from utils import pad_tertiary
+from tqdm import tqdm
+from utils import calc_pairwise_distances, random_index, to_distogram
 from utils import pad_feature, pad_feature2
 
 
@@ -35,7 +34,6 @@ def masking_matrix(input_mask):
     matrix_mask = base * mask * tf.transpose(mask)
 
     return matrix_mask
-
 
 
 def parse_tfexample(serialized_input):
@@ -97,37 +95,6 @@ def widen_seq(seq):
     return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
 
 
-def widen_pssm(pssm, seq):
-    """ Converts a seq into a tensor. Not LxN but LxLxN.
-        Multiply cell i,j x j,i to create an LxLxN tensor.
-    """
-    key = "HRKDENQSYTCPAVLIGFWM"
-    key_alpha = "ACDEFGHIKLMNPQRSTVWY"
-    tensor = []
-    for i in range(self.pad_size):
-        d2 = []
-        for j in range(self.pad_size):
-            # Check first for lengths (dont want index_out_of_range)
-            if j<len(seq) and i<len(seq):
-                d1 = [aa[i]*aa[j] for aa in pssm]
-            else:
-                d1 = [0 for i in range(n)]
-
-            # Append pssm[i]*pssm[j]
-            if j<len(seq) and i<len(seq):
-                d1.append(pssm[key_alpha.index(seq[i])][i] *
-                          pssm[key_alpha.index(seq[j])][j])
-            else:
-                d1.append(0)
-            # Append manhattan distance to diagonal but reversed (center=0, xtremes=1)
-            d1.append(1 - abs(i-j)/self.crop_size)
-
-            d2.append(d1)
-        tensor.append(d2)
-
-    return np.array(tensor)
-
-
 def create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride):
     batches = []
     for x in range(0,primary_2D.shape[0],stride):
@@ -186,29 +153,100 @@ def create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_val
         return (primary, dist_map, tertiary_mask)
 
 
+def parse_val_test_set(file_paths):
+    """
+    This function iterates over all input files
+    and extract record information from each single file
+    Use Yield for optimization purpose causes reading when needed
+    """
+
+    raw_dataset = tf.data.TFRecordDataset(file_paths)
+    for data in raw_dataset:
+        parsed_data = parse_val_test_tfexample(data)
+        yield parsed_data
+
+
+def parse_val_test_tfexample(serialized_input):
+    context, features = tf.io.parse_single_sequence_example(serialized_input,
+                            context_features={'id': tf.io.FixedLenFeature((1,), tf.string)},
+                            sequence_features={
+                                    'primary':      tf.io.FixedLenSequenceFeature((1,),               tf.int64),
+                                    'evolutionary': tf.io.FixedLenSequenceFeature((NUM_EVO_ENTRIES,), tf.float32, allow_missing=True),
+                                    'secondary':    tf.io.FixedLenSequenceFeature((1,),               tf.int64,   allow_missing=True),
+                                    'tertiary':     tf.io.FixedLenSequenceFeature((NUM_DIMENSIONS,),  tf.float32, allow_missing=True),
+                                    'mask':         tf.io.FixedLenSequenceFeature((1,),               tf.float32, allow_missing=True)})
+
+    id_ = context['id'][0]
+    primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
+    evolutionary = features['evolutionary']
+    secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
+    tertiary = features['tertiary']
+    mask = features['mask'][:, 0]
+
+    pri_length = tf.size(primary)
+    # Generate tertiary masking matrix--if mask is missing then assume all residues are present
+    mask = tf.cond(tf.not_equal(tf.size(mask), 0), lambda: mask, lambda: tf.ones([pri_length]))
+    ter_mask = masking_matrix(mask)
+    return id_, primary, evolutionary, tertiary, ter_mask
+
+
+def data_transformations(primary, evolutionary, tertiary, tertiary_mask, crop_size, random_crop=True,
+                            padding_value=-1, minimum_bin_val=2, maximum_bin_val=22, num_bins=64):
+
+    # correcting the datatype to avoid errors
+    padding_value = float(padding_value)
+    minimum_bin_val = float(minimum_bin_val)
+    maximum_bin_val = float(maximum_bin_val)
+    num_bins = int(num_bins)
+
+    if random_crop:
+        index = random_index(primary, crop_size)
+    else:
+        index = [0, 0]
+    dist_map = calc_pairwise_distances(tertiary)
+    padding_size = math.ceil(primary.shape[0]/crop_size)*crop_size - primary.shape[0]
+    # perform cropping + necessary padding
+    random_crop = create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size,
+                                minimum_bin_val, maximum_bin_val, num_bins)
+    return random_crop
+
+
+def generate_val_test_npy_binary(path, min_thinning, crop_size, num_crops_per_sample, random_crop, padding_value,
+                                 minimum_bin_val, maximum_bin_val, num_bins):
+    primary_list = []
+    tertiary_list = []
+    mask_list = []
+    for id_, primary, evolutionary, tertiary, ter_mask in tqdm(parse_val_test_set(path)):
+        sample_thinning = id_.numpy().decode("utf-8")[0:2]
+        if int(sample_thinning) >= min_thinning:
+            for i in range(0, num_crops_per_sample):
+                random_crop_tuple = data_transformations(primary=primary, evolutionary=evolutionary, tertiary=tertiary,
+                                                         tertiary_mask=ter_mask, crop_size=crop_size,
+                                                         random_crop=random_crop, padding_value=padding_value,
+                                                         minimum_bin_val=minimum_bin_val,
+                                                         maximum_bin_val=maximum_bin_val, num_bins=num_bins)
+                primary_list.append(random_crop_tuple[0])
+                tertiary_list.append(random_crop_tuple[1])
+                mask_list.append(random_crop_tuple[2])
+            break
+
+    return primary_list, tertiary_list, mask_list
+
+
 if __name__ == '__main__':
-    # add your test flag here and put it below
-    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
-    stride = 64
-    # test function for the optimized function
-    for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
-        print(len(primary))
-        distance_map = calc_pairwise_distances(tertiary)
-
-        crops_per_seq = len(primary) // stride #--> stride = 64
-        if len(primary) % stride > 0:
-            crops_per_seq += 1
-        total_crops = crops_per_seq * crops_per_seq #--> this indicates how many pairs of (i,j) should we have for this protein alone
-        #print(total_crops)
-
-        padded_primary = pad_primary(primary, stride*crops_per_seq)
-        padded_tertiary = pad_tertiary(distance_map, stride*crops_per_seq)
-        padded_mask = pad_mask(ter_mask, stride*crops_per_seq)
-
-        #ready to use data
-        primary_2D = widen_seq(padded_primary)
-        #distogram = to_distogram(padded_tertiary, 2, 22, 64)
-
-        batches = create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride)
-        print(len(batches))
-        break
+    path = glob.glob("P:/casp7/casp7/validation/*")
+    min_thinning = 50
+    crop_size = 64
+    num_crops_per_sample = 100
+    random_crop = True
+    padding_value = 0
+    minimum_bin_val = 2
+    maximum_bin_val = 22
+    num_bins = 64
+    primary_list, tertiary_list, mask_list = generate_val_test_npy_binary(path, min_thinning, crop_size,
+                                                                          num_crops_per_sample, random_crop,
+                                                                          padding_value, minimum_bin_val,
+                                                                          maximum_bin_val, num_bins)
+    print(len(primary_list))
+    print(len(tertiary_list))
+    print(len(mask_list))
