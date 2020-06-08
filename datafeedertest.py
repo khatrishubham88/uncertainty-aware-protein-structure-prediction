@@ -5,6 +5,8 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 import numpy as np
 import glob
+import os
+import time
 
 from utils import *
 
@@ -25,18 +27,26 @@ def main():
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
     "num_bins":64,         # num of bins to use
-    "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
+    "batch_size":32,       # batch size for training, check if this is needed here or should be done directly in fit?
     "shuffle":False,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":False,         # if cropping should be random, this has to be implemented later
+    "random_crop":True,         # if cropping should be random, this has to be implemented later
     "flattening":True,
-    "take":16,
-    "epochs":100
+    # "take":16,
+    "epochs":30,
+    "prefetch": True
     }
+    print("Logging the parameters used")
+    for k, v in params.items():
+        print("{} = {}".format(k,v))
+    time.sleep(60)    
+    result_dir = "test_results"
+    if os.path.isdir(result_dir) is False:
+        os.mkdir(result_dir)
     dataprovider = DataGenerator(path, **params)
     K.clear_session()
     nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
-                batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.0)
+                batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.1)
     model = nn.model()
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.003),
                   loss=masked_categorical_cross_entropy_test())
@@ -58,6 +68,7 @@ def main():
     print(dataprovider.idx_track)
     # params["take"] = 15
     dataprovider = DataGenerator(path, **params)
+    
     for j in range(params["take"]):
         X, y, mask = next(dataprovider)
         # model.save("model_b16_fs.h5")
@@ -91,7 +102,7 @@ def main():
             plt.subplot(133)
             plt.title("mask")
             plt.imshow(mask[i], cmap='viridis_r')
-            plt.savefig("result_batch_"+str(j)+"_sample_"+str(i)+".png")
+            plt.savefig(result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
 
 
 if __name__=="__main__":

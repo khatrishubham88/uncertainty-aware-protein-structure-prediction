@@ -228,7 +228,6 @@ def generate_val_test_npy_binary(path, min_thinning, crop_size, num_crops_per_sa
                 primary_list.append(random_crop_tuple[0])
                 tertiary_list.append(random_crop_tuple[1])
                 mask_list.append(random_crop_tuple[2])
-            break
 
     return primary_list, tertiary_list, mask_list
 
