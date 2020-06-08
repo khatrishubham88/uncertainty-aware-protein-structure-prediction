@@ -167,7 +167,10 @@ def to_distogram(distance_map, min_val, max_val, num_bins):
 
     return distogram
 
-
+"""
+This function returns a random index to do the cropping,
+index is within sequence lengh if seq_len > crop_size
+"""
 def random_index(primary, crop_size):
     index = []
     if primary.shape[0] <= crop_size:
@@ -201,4 +204,3 @@ def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold
         padding = tf.concat([padding, empty], 0)
     feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
     return feature
-

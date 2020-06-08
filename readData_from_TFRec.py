@@ -128,19 +128,6 @@ def widen_pssm(pssm, seq):
     return np.array(tensor)
 
 
-def create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride):
-    batches = []
-    for x in range(0,primary_2D.shape[0],stride):
-        for y in range(0,primary_2D.shape[0],stride):
-            primary_2D_crop = primary_2D[x:x+stride, y:y+stride, :]
-            padded_tertiary_crop = padded_tertiary[x:x+stride, y:y+stride]
-            # padded_tertiary_crop = to_distogram(padded_tertiary_crop, 2, 22, 64)
-            mask_crop = padded_mask[x:x+stride, y:y+stride]
-            batches.append((primary_2D_crop, padded_tertiary_crop, mask_crop))
-
-    return batches
-
-
 def create_crop(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size, minimum_bin_val,
                     maximum_bin_val, num_bins):
     #if primary.shape[0] % crop_size != 0:
@@ -166,8 +153,12 @@ def create_crop(primary, dist_map, tertiary_mask, index, crop_size, padding_valu
         ter_mask_crop = padded_ter_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
         distogram_crop = to_distogram(dist_map_crop, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
         return primary_2D_crop, distogram_crop, ter_mask_crop
-    
-    
+
+"""
+if the sequence length is > crop_size this function
+crops a random (crop_size x crop_size) window from the calculated features
+Otherwise, it padds the features to the crop_size and returns them
+"""
 def create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size, minimum_bin_val,
                     maximum_bin_val, num_bins):
     if primary.shape[0] >= crop_size:
@@ -184,31 +175,3 @@ def create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_val
         dist_map = to_distogram(dist_map, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
         tertiary_mask = pad_feature2(tertiary_mask, crop_size, 0, padding_size, 2)
         return (primary, dist_map, tertiary_mask)
-
-
-if __name__ == '__main__':
-    # add your test flag here and put it below
-    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
-    stride = 64
-    # test function for the optimized function
-    for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
-        print(len(primary))
-        distance_map = calc_pairwise_distances(tertiary)
-
-        crops_per_seq = len(primary) // stride #--> stride = 64
-        if len(primary) % stride > 0:
-            crops_per_seq += 1
-        total_crops = crops_per_seq * crops_per_seq #--> this indicates how many pairs of (i,j) should we have for this protein alone
-        #print(total_crops)
-
-        padded_primary = pad_primary(primary, stride*crops_per_seq)
-        padded_tertiary = pad_tertiary(distance_map, stride*crops_per_seq)
-        padded_mask = pad_mask(ter_mask, stride*crops_per_seq)
-
-        #ready to use data
-        primary_2D = widen_seq(padded_primary)
-        #distogram = to_distogram(padded_tertiary, 2, 22, 64)
-
-        batches = create_protein_batches(primary_2D, padded_tertiary, padded_mask, stride)
-        print(len(batches))
-        break
