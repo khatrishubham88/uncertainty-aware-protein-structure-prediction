@@ -96,9 +96,7 @@ def widen_seq(seq):
             wide_tensor[j,k,:] = encoding[i,:]
     return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
 
-"""
-Converts the LxL pssm matrix into LxLxN shape
-"""
+
 def widen_pssm(pssm):
     """
     Converts the LxL pssm matrix into LxLxN shape
@@ -149,7 +147,7 @@ def create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_val
     crops a random (crop_size x crop_size) window from the calculated features
     Otherwise, it padds the features to the crop_size and returns them
     """
-                    
+
     if primary.shape[0] >= crop_size:
         primary = widen_seq(primary)
         primary = primary[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size,:]
