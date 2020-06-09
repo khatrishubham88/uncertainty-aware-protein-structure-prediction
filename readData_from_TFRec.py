@@ -17,15 +17,14 @@ NUM_DIMENSIONS = 3
 NUM_EVO_ENTRIES = 21
 
 
+""" Constructs a masking matrix to zero out pairwise distances due to missing residues or padding.
+Args:
+    input_mask: 0/1 vector indicating whether a position should be masked (0) or not (1)
+Returns:
+    A square matrix with all 1s except for rows and cols whose corresponding indices in mask are set to 0.
+    [SEQ_LENGTH, SEQ_LENGTH]
+"""
 def masking_matrix(input_mask):
-    """ Constructs a masking matrix to zero out pairwise distances due to missing residues or padding.
-    Args:
-        input_mask: 0/1 vector indicating whether a position should be masked (0) or not (1)
-    Returns:
-        A square matrix with all 1s except for rows and cols whose corresponding indices in mask are set to 0.
-        [SEQ_LENGTH, SEQ_LENGTH]
-    """
-
     mask = tf.convert_to_tensor(input_mask, name='mask')
 
     #print(tf.size(mask)) #--> Tensor("Size_2:0", shape=(), dtype=int32)
@@ -63,25 +62,23 @@ def parse_tfexample(serialized_input):
     return primary, evolutionary, tertiary, ter_mask
 
 
-
+"""
+This function iterates over all input files
+and extract record information from each single file
+Use Yield for optimization purpose causes reading when needed
+"""
 def parse_dataset(file_paths):
-    """
-    This function iterates over all input files
-    and extract record information from each single file
-    Use Yield for optimization purpose causes reading when needed
-    """
-
     raw_dataset = tf.data.TFRecordDataset(file_paths)
     for data in raw_dataset:
         parsed_data = parse_tfexample(data)
         yield parsed_data
 
+"""
+_aa_dict = {'A': '0', 'C': '1', 'D': '2', 'E': '3', 'F': '4', 'G': '5', 'H': '6', 'I': '7',
+'K': '8', 'L': '9', 'M': '10', 'N': '11', 'P': '12', 'Q': '13', 'R': '14', 'S': '15', 'T': '16', 'V': '17', 'W': '18', 'Y': '19'}
+Converts a seq into a one-hot tensor. Not LxN but LxLxN
+"""
 def widen_seq(seq):
-    """
-    _aa_dict = {'A': '0', 'C': '1', 'D': '2', 'E': '3', 'F': '4', 'G': '5', 'H': '6', 'I': '7',
-     'K': '8', 'L': '9', 'M': '10', 'N': '11', 'P': '12', 'Q': '13', 'R': '14', 'S': '15', 'T': '16', 'V': '17', 'W': '18', 'Y': '19'}
-    """
-    """ Converts a seq into a one-hot tensor. Not LxN but LxLxN"""
     L = seq.shape[0]
     key = np.arange(start=0,stop=NUM_AAS,step=1)
     wide_tensor = np.zeros(shape=(L,L,NUM_AAS))
@@ -96,10 +93,10 @@ def widen_seq(seq):
             wide_tensor[j,k,:] = encoding[i,:]
     return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
 
-
+"""
+Converts the LxL pssm matrix into LxLxN shape
+"""
 def widen_pssm(pssm):
-    """ Converts the LxL pssm matrix into LxLxN shape
-    """
     L = pssm.shape[0]
     wide_tensor = np.zeros(shape=(L,L,NUM_EVO_ENTRIES))
     proto_pssm = tf.make_tensor_proto(pssm)
