@@ -9,6 +9,7 @@ from utils import pad_primary
 from utils import pad_mask
 from utils import pad_tertiary
 from utils import pad_feature, pad_feature2
+import time
 
 
 NUM_AAS = 20
@@ -82,50 +83,33 @@ def widen_seq(seq):
     """
     """ Converts a seq into a one-hot tensor. Not LxN but LxLxN"""
     L = seq.shape[0]
-    N = 20
-    key = np.arange(start=0,stop=N,step=1)
-    wide_tensor = np.zeros(shape=(L,L,N))
+    key = np.arange(start=0,stop=NUM_AAS,step=1)
+    wide_tensor = np.zeros(shape=(L,L,NUM_AAS))
     proto_seq = tf.make_tensor_proto(seq)
     numpy_seq = tf.make_ndarray(proto_seq)
     enc = OneHotEncoder(handle_unknown='error')
     enc.fit(key.reshape(-1,1))
     encoding = enc.transform(key.reshape(-1,1)).toarray()
-    for i in range(N):
+    for i in range(NUM_AAS):
         pos = np.argwhere(numpy_seq==i)
         for j,k in itertools.product(pos, repeat=2):
             wide_tensor[j,k,:] = encoding[i,:]
     return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
 
 
-def widen_pssm(pssm, seq):
-    """ Converts a seq into a tensor. Not LxN but LxLxN.
-        Multiply cell i,j x j,i to create an LxLxN tensor.
+def widen_pssm(pssm):
+    """ Converts the LxL pssm matrix into LxLxN shape
     """
-    key = "HRKDENQSYTCPAVLIGFWM"
-    key_alpha = "ACDEFGHIKLMNPQRSTVWY"
-    tensor = []
-    for i in range(self.pad_size):
-        d2 = []
-        for j in range(self.pad_size):
-            # Check first for lengths (dont want index_out_of_range)
-            if j<len(seq) and i<len(seq):
-                d1 = [aa[i]*aa[j] for aa in pssm]
-            else:
-                d1 = [0 for i in range(n)]
+    L = pssm.shape[0]
+    wide_tensor = np.zeros(shape=(L,L,NUM_EVO_ENTRIES))
+    proto_pssm = tf.make_tensor_proto(pssm)
+    npy_pssm = tf.make_ndarray(proto_pssm)
+    for i in range(npy_pssm.shape[0]):
+        for j in range(npy_pssm.shape[0]):
+            new_feature_vec = (npy_pssm[i]*npy_pssm[j])/2
+            wide_tensor[i,j,:] = new_feature_vec
+    return tf.convert_to_tensor(wide_tensor, dtype=tf.float32)
 
-            # Append pssm[i]*pssm[j]
-            if j<len(seq) and i<len(seq):
-                d1.append(pssm[key_alpha.index(seq[i])][i] *
-                          pssm[key_alpha.index(seq[j])][j])
-            else:
-                d1.append(0)
-            # Append manhattan distance to diagonal but reversed (center=0, xtremes=1)
-            d1.append(1 - abs(i-j)/self.crop_size)
-
-            d2.append(d1)
-        tensor.append(d2)
-
-    return np.array(tensor)
 
 
 def create_crop(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size, minimum_bin_val,
@@ -175,3 +159,16 @@ def create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_val
         dist_map = to_distogram(dist_map, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
         tertiary_mask = pad_feature2(tertiary_mask, crop_size, 0, padding_size, 2)
         return (primary, dist_map, tertiary_mask)
+
+
+if __name__ == '__main__':
+    # add your test flag here and put it below
+    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
+    for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
+        #print(primary)
+        #widen_pssm(evolutionary[0:3])
+        start = time.time()
+        print(widen_pssm(evolutionary).shape)
+        total = time.time() - start
+        print(total)
+        break
