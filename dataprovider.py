@@ -10,13 +10,13 @@ from tensorflow.python.ops import array_ops
 
 class DataGenerator(object):
     'Generates data for Keras'
-    def __init__(self, path: list, crop_size=64, 
+    def __init__(self, path: list, crop_size=64,
                  datasize=None, features="primary",
                  padding_value=-1, minimum_bin_val=2,
                  maximum_bin_val=22, num_bins=64,
                  batch_size=100, shuffle=False,
-                 shuffle_buffer_size=None, 
-                 random_crop=True, take=None, 
+                 shuffle_buffer_size=None,
+                 random_crop=True, take=None,
                  flattening=True, epochs=1, prefetch = False):
         'Initialization'
         self.path = path
@@ -73,9 +73,9 @@ class DataGenerator(object):
 
 
     def construct_feeder(self):
-        def flat_map(primary, secondary, mask):
+        def flat_map(primary, tertiary, mask):
             # tf.print(array_ops.shape(mask))
-            return (primary, secondary, tf.reshape(mask, shape=(-1,)))
+            return (primary, tertiary, tf.reshape(mask, shape=(-1,)))
 
         self.datafeeder = tf.data.Dataset.from_generator(self.transformation_generator,
                                                          output_types=(tf.float32, tf.float32, tf.float32),
@@ -180,7 +180,7 @@ if __name__=="__main__":
                             if tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
                                 pass
                             elif not tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
-                                num_mismatch +=1 
+                                num_mismatch +=1
                                 if mismatch:
                                     print("old val = {}, new val = {}, at i = {}, j = {}, k = {}, l = {}".format(tensors[n%params["take"]][i,j,k,l], count[0][i,j,k,l], i, j, k, l))
                                     mismatch = False
