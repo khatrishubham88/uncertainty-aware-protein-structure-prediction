@@ -88,13 +88,14 @@ def pad_mask(tensor, shape):
 
     return padded_tensor
 
-"""Calculates the distance between two AA
-using three different approaches:
-    1- distance between the N atoms of the two AA
-    2- distance between the C-alpha atoms of the two AA
-    3- distance between the C-prime atoms of the two AA
-"""
+
 def calc_distance(aa1, aa2):
+    """Calculates the distance between two AA
+    using three different approaches:
+        1- distance between the N atoms of the two AA
+        2- distance between the C-alpha atoms of the two AA
+        3- distance between the C-prime atoms of the two AA
+    """
     aa1_N_pos = (aa1[0][0], aa1[0][1], aa1[0][2])
     aa2_N_pos = (aa2[0][0], aa2[0][1], aa2[0][2])
 
@@ -116,22 +117,23 @@ def calc_distance(aa1, aa2):
     return N_distance, C_alpha_distance, C_prime_distance
 
 
-"""This function takes as input the two C-alpha corrdinates
-of two AAs and returns the angstrom distance between them
-input: coord1 [x, y, z], coord2 [x, y, z]
-"""
 def calc_calpha_distance(coord1, coord2):
+    """This function takes as input the two C-alpha corrdinates
+    of two AAs and returns the angstrom distance between them
+    input: coord1 [x, y, z], coord2 [x, y, z]
+    """
     C_alpha_distance = math.sqrt(
         (coord2[0] - coord1[0]) ** 2 + (coord2[1] - coord1[1]) ** 2 + (coord2[2] - coord1[2]) ** 2)
 
     return C_alpha_distance
 
 
-"""Calculates the pairwise distances between
-AAs of a protein and returns the distance map in angstrom.
-input: tertiary is a tensor of shape (seq_len, 3)
-"""
 def calc_pairwise_distances(tertiary):
+    """Calculates the pairwise distances between
+    AAs of a protein and returns the distance map in angstrom.
+    input: tertiary is a tensor of shape (seq_len, 3)
+    """
+
     tertiary_numpy = tertiary.numpy() / 100
     c_alpha_coord = []
     for index, coord in enumerate(tertiary_numpy):
@@ -151,13 +153,13 @@ def calc_pairwise_distances(tertiary):
     return tf.convert_to_tensor(distance_matrix)
 
 
-"""Returns the distogram tensor LxLxnum_bins from the distance map LxL.
-Input: distance_map: LxL distance matrx in angstrom
-       min: minimum value for the histogram in angstrom
-       max: maximum value for the histogram in angstrom
-       num_bins: integer number
-"""
 def to_distogram(distance_map, min_val, max_val, num_bins):
+    """Returns the distogram tensor LxLxnum_bins from the distance map LxL.
+    Input: distance_map: LxL distance matrx in angstrom
+           min: minimum value for the histogram in angstrom
+           max: maximum value for the histogram in angstrom
+           num_bins: integer number
+    """
     assert min_val >= 0.0
     assert max_val > 0.0
     histo_range = max_val-min_val
@@ -170,6 +172,10 @@ def to_distogram(distance_map, min_val, max_val, num_bins):
 
 
 def random_index(primary, crop_size):
+    """
+    This function returns a random index to do the cropping,
+    index is within sequence lengh if seq_len > crop_size
+    """
     index = []
     if primary.shape[0] <= crop_size:
         index.extend([0, 0])
@@ -202,4 +208,3 @@ def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold
         padding = tf.concat([padding, empty], 0)
     feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
     return feature
-
