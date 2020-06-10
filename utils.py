@@ -48,6 +48,7 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
     return distance_maps
 
 
+
 def pad_tensor(tensor, shape):
     if isinstance(shape, int):
         shape = tuple([shape])
@@ -162,7 +163,7 @@ def to_distogram(distance_map, min_val, max_val, num_bins):
     histo_range = max_val-min_val
 
     distance_map = np.clip(distance_map, a_min=min_val, a_max=max_val)
-    distance_map = np.int32(np.floor((num_bins-1)*(distance_map-min_val)/(histo_range)))
+    distance_map = np.int32(np.floor((num_bins - 1)*(distance_map-min_val)/(histo_range)))
     distogram = np.eye(num_bins)[distance_map]
 
     return distogram
