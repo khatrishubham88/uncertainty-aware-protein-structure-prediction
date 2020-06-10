@@ -146,14 +146,14 @@ if __name__=="__main__":
     "crop_size":64, # this is the LxL
     "datasize":None,
     "features":"primary", # this will decide the number of channel, with primary 20, secondary 20+something
-    "padding_value":-1, # value to use for padding the sequences, mask is padded by 0 only
+    "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
     "num_bins":64,         # num of bins to use
     "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
     "shuffle":False,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":False,         # if cropping should be random, this has to be implemented later
+    "random_crop":True,         # if cropping should be random, this has to be implemented later
     "flattening":True,
     "take": 6,
     "epochs":2,
