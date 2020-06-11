@@ -9,3 +9,5 @@ rm -fr custom_model_weights*
 rm -fr learning_rate.png
 rm -fr loss.png
 rm -fr result.png
+rm -fr .idea/
+rm -fr .ipynb_*

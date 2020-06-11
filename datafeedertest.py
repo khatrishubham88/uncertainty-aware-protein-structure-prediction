@@ -21,9 +21,9 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    train_path = glob.glob("../proteinnet/data/casp7/training/100/1")
+    train_path = glob.glob("../proteinnet/data/casp7/training/100/*")
     val_path = glob.glob("../proteinnet/data/casp7/validation/*")
-    train_plot = False
+    train_plot = True
     validation_plot = True
     params = {
     "crop_size":64, # this is the LxL
@@ -33,13 +33,13 @@ def main():
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
     "num_bins":64,         # num of bins to use
-    "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
-    "shuffle":False,        # if wanna shuffle the data, this is not necessary
+    "batch_size":16,       # batch size for training, check if this is needed here or should be done directly in fit?
+    "shuffle":True,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":False,         # if cropping should be random, this has to be implemented later
+    "random_crop":True,         # if cropping should be random, this has to be implemented later
     "flattening":True,
     # "take":8,
-    "epochs":2,
+    "epochs":30,
     "prefetch": True,
     "val_path": val_path,
     "validation_thinning_threshold": 50,
