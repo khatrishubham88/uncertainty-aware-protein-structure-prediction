@@ -21,8 +21,10 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    train_path = glob.glob("../proteinnet/data/casp7/training/100/*")
+    train_path = glob.glob("../proteinnet/data/casp7/training/100/1")
     val_path = glob.glob("../proteinnet/data/casp7/validation/*")
+    train_plot = False
+    validation_plot = True
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
@@ -36,12 +38,12 @@ def main():
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
     "random_crop":False,         # if cropping should be random, this has to be implemented later
     "flattening":True,
-    "take":8,
+    # "take":8,
     "epochs":2,
     "prefetch": True,
     "val_path": val_path,
     "validation_thinning_threshold": 50,
-    "experimental_val_take": 2
+    # "experimental_val_take": 2
     }
     # printing the above params for rechecking
     print("Logging the parameters used")
@@ -164,7 +166,7 @@ def main():
     plt.ylabel("Learning Rate")
     plt.plot( x_range, model_hist.history["lr"])
     plt.savefig("learning_rate.png")
-    
+    plt.close("all")
     params["epochs"]=1
     dataprovider = DataGenerator(train_path, **params)
     if params.get("val_path", None) is not None:
@@ -173,47 +175,9 @@ def main():
             validation_steps = params.get("experimental_val_take", None)
         else:
             validation_steps = dataprovider.get_validation_length()
-    
-    for j in range(num_of_steps):
-        X, y, mask = next(dataprovider)
-        # model.save("model_b16_fs.h5")
-        mask = mask.numpy()
-        y = y.numpy()
-        mask = mask.reshape(y.shape[0:-1])
-        # print(y.shape)
-        # print(mask[0])
-        distance_maps = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
-        test = model.predict(X)
-        test = output_to_distancemaps(test, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
-        plt.figure()
-        plt.subplot(131)
-        plt.title("Ground Truth")
-        plt.imshow(distance_maps[0], cmap='viridis_r')
-        plt.subplot(132)
-        plt.title("Prediction by model")
-        plt.imshow(test[0], cmap='viridis_r')
-        plt.subplot(133)
-        plt.title("mask")
-        plt.imshow(mask[0], cmap='viridis_r')
-        plt.suptitle("Training Data", fontsize=16)
-        plt.savefig(result_dir + "/result.png")
-        for i in range(params["batch_size"]):
-            plt.figure()
-            plt.subplot(131)
-            plt.title("Ground Truth")
-            plt.imshow(distance_maps[i], cmap='viridis_r')
-            plt.subplot(132)
-            plt.title("Prediction by model")
-            plt.imshow(test[i], cmap='viridis_r')
-            plt.subplot(133)
-            plt.title("mask")
-            plt.imshow(mask[i], cmap='viridis_r')
-            plt.suptitle("Training Data", fontsize=16)
-            plt.savefig(result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
-
-    if params.get("val_path", None) is not None:
-        for j, val in enumerate(validation_data):
-            X, y, mask = val
+    if train_plot:
+        for j in range(num_of_steps):
+            X, y, mask = next(dataprovider)
             # model.save("model_b16_fs.h5")
             mask = mask.numpy()
             y = y.numpy()
@@ -233,8 +197,9 @@ def main():
             plt.subplot(133)
             plt.title("mask")
             plt.imshow(mask[0], cmap='viridis_r')
-            plt.suptitle("Validation Data", fontsize=16)
-            plt.savefig(val_result_dir+"/result.png")
+            plt.suptitle("Training Data", fontsize=16)
+            plt.savefig(result_dir + "/result.png")
+            plt.close("all")
             for i in range(params["batch_size"]):
                 plt.figure()
                 plt.subplot(131)
@@ -246,9 +211,51 @@ def main():
                 plt.subplot(133)
                 plt.title("mask")
                 plt.imshow(mask[i], cmap='viridis_r')
+                plt.suptitle("Training Data", fontsize=16)
+                plt.savefig(result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
+                plt.close("all")
+    
+    if validation_plot:
+        if params.get("val_path", None) is not None:
+            for j, val in enumerate(validation_data):
+                X, y, mask = val
+                # model.save("model_b16_fs.h5")
+                mask = mask.numpy()
+                y = y.numpy()
+                mask = mask.reshape(y.shape[0:-1])
+                # print(y.shape)
+                # print(mask[0])
+                distance_maps = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
+                test = model.predict(X)
+                test = output_to_distancemaps(test, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
+                plt.figure()
+                plt.subplot(131)
+                plt.title("Ground Truth")
+                plt.imshow(distance_maps[0], cmap='viridis_r')
+                plt.subplot(132)
+                plt.title("Prediction by model")
+                plt.imshow(test[0], cmap='viridis_r')
+                plt.subplot(133)
+                plt.title("mask")
+                plt.imshow(mask[0], cmap='viridis_r')
                 plt.suptitle("Validation Data", fontsize=16)
-                plt.savefig(val_result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
-
+                plt.savefig(val_result_dir+"/result.png")
+                plt.close("all")
+                
+                for i in range(params["batch_size"]):
+                    plt.figure()
+                    plt.subplot(131)
+                    plt.title("Ground Truth")
+                    plt.imshow(distance_maps[i], cmap='viridis_r')
+                    plt.subplot(132)
+                    plt.title("Prediction by model")
+                    plt.imshow(test[i], cmap='viridis_r')
+                    plt.subplot(133)
+                    plt.title("mask")
+                    plt.imshow(mask[i], cmap='viridis_r')
+                    plt.suptitle("Validation Data", fontsize=16)
+                    plt.savefig(val_result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
+                    plt.close("all")
 
 if __name__=="__main__":
     main()
