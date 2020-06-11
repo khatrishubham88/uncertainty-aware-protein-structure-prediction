@@ -3,7 +3,34 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 # from readData_from_TFRec import widen_seq
+from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_crossentropy
+from tensorflow.python.keras.utils import losses_utils
 
+
+class CategoricalCrossentropyForDistributed(LossFunctionWrapper):
+    def __init__(self,
+               from_logits=False,
+               label_smoothing=0,
+               reduction=losses_utils.ReductionV2.AUTO,
+               name='categorical_crossentropy',
+               global_batch_size=None):
+        if global_batch_size is None:
+            raise ValueError("Global batch size must be provided")
+        if not isinstance(global_batch_size, int):
+            raise ValueError("Global batch size must be a integer")
+        global_batch_size = tf.constant(global_batch_size, dtype=tf.float32)
+        super(CategoricalCrossentropyForDistributed, self).__init__(
+        categorical_crossentropy_with_wrapper,
+        name=name,
+        reduction=reduction,
+        from_logits=from_logits,
+        label_smoothing=label_smoothing,
+        global_batch_size=global_batch_size)
+
+def categorical_crossentropy_with_wrapper(y_true, y_pred, global_batch_size, from_logits=False, label_smoothing=0):
+    loss = categorical_crossentropy(y_true=y_true, y_pred=y_pred, from_logits=from_logits, label_smoothing=label_smoothing)
+    # weight by global batch size
+    return loss/global_batch_size
 
 def load_npy_binary(path):
     return np.load(path)
@@ -22,11 +49,12 @@ def masked_categorical_cross_entropy():
 
 def masked_categorical_cross_entropy_test():
     # mask = K.variable()
-    kerasloss = tf.keras.losses.CategoricalCrossentropy()
-
+    strategy = tf.distribute.MirroredStrategy()
     def loss(y_true, y_pred):
-        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-        l = kerasloss(y_true, y_pred)
+        with strategy.scope():
+            kerasloss = tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+            y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+            l = kerasloss(y_true, y_pred)
         return l
 
     return loss
