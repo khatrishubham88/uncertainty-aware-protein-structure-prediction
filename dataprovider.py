@@ -52,6 +52,7 @@ class DataGenerator(object):
         self.iterator = None
         # self.idx_track = []
         self.__iter__()
+
     def __len__(self):
         'Denotes the number of batches per epoch'
         return int(np.floor(self.datasize / self.batch_size))
@@ -87,7 +88,8 @@ class DataGenerator(object):
         self.datafeeder = self.datafeeder.batch(self.batch_size, drop_remainder=True)
         if self.flattening:
             # parallelizing the flattening
-            self.datafeeder = self.datafeeder.map(lambda x, y, z: flat_map(x, y, z), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            self.datafeeder = self.datafeeder.map(lambda x, y, z: flat_map(x, y, z),
+                                                  num_parallel_calls=tf.data.experimental.AUTOTUNE)
         if self.take is not None:
             self.datafeeder = self.datafeeder.take(self.take)
         self.datafeeder = self.datafeeder.repeat(self.epochs)
@@ -180,7 +182,7 @@ if __name__=="__main__":
                             if tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
                                 pass
                             elif not tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
-                                num_mismatch +=1
+                                num_mismatch += 1
                                 if mismatch:
                                     print("old val = {}, new val = {}, at i = {}, j = {}, k = {}, l = {}".format(tensors[n%params["take"]][i,j,k,l], count[0][i,j,k,l], i, j, k, l))
                                     mismatch = False
