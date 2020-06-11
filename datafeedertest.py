@@ -138,13 +138,17 @@ def main():
                             callbacks=[callback_lr, callback_es]
                             )
     # model = tf.keras.models.load_model('model_b16_fs.h5', compile=False)
-    print(model_hist.history)   
-    model.save_weights("custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
+    print(model_hist.history)
+    
+    model_dir = "model_weights"
+    if os.path.isdir(model_dir) is False:
+        os.mkdir(model_dir)
+       
+    model.save_weights(model_dir + "/custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
     # print(dataprovider.idx_track)
     # plot loss
     x_range = range(1,params["epochs"]+1)
     # print(list(x_range))
-    print(model_hist.history["loss"])
     plt.figure()
     plt.title("Loss plot")
     plt.plot(x_range, model_hist.history["loss"], label="Training loss")
