@@ -21,7 +21,8 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    path = glob.glob("P:/casp7/casp7/training/100/*")
+    train_path = glob.glob("../proteinnet/data/casp7/training/100/*")
+    val_path = glob.glob("../proteinnet/data/casp7/validation/*")
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
@@ -37,23 +38,49 @@ def main():
     "flattening":True,
     "take":8,
     "epochs":2,
-    "prefetch": True
+    "prefetch": True,
+    "val_path": val_path,
+    "validation_thinning_threshold": 50,
+    "experimental_val_take": 2
     }
+    # printing the above params for rechecking
     print("Logging the parameters used")
     for k, v in params.items():
         print("{} = {}".format(k,v))
-    #time.sleep(60)    
+    time.sleep(20)    
+    
+    # setting up directory to add results after training
     result_dir = "test_results"
     if os.path.isdir(result_dir) is False:
         os.mkdir(result_dir)
-    dataprovider = DataGenerator(path, **params)
+    if params.get("val_path", None) is not None:
+        val_result_dir = result_dir + "/val_data"
+        if os.path.isdir(val_result_dir) is False:
+            os.mkdir(val_result_dir)
+    # instantiate data provider
+    dataprovider = DataGenerator(train_path, **params)
+    
     print("Total Dataset size = {}".format(len(dataprovider)))
+    
+    if params.get("val_path", None) is not None:
+        validation_data = dataprovider.get_validation_dataset()
+        validation_steps = dataprovider.get_validation_length()
+        print("Validation Dataset size = {}".format(validation_steps))
+    
+    # this is just for experimenting
+    if params.get("experimental_val_take", None) is not None:
+        validation_steps = params.get("experimental_val_take", None)
+        print("Experimenting on validation Dataset size = {}".format(validation_steps))
+        
+    # if path is wrong this will throw error
     if len(dataprovider) <=0:
         raise ValueError("Data reading failed!")
+    
     K.clear_session()
     strategy = tf.distribute.MirroredStrategy()
     print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
     # with strategy.scope():
+    
     nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
                 batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.1)
     model = nn.model()
@@ -63,40 +90,69 @@ def main():
     tf.print(model.summary())
     #loss = 89064.46875
     
-    print(model.layers[1].kernel_initializer.scale)
     
+    # to find number of steps for one epoch
     try:
         num_of_steps = params["take"]
     except:
         num_of_steps = len(dataprovider)
 
+    # to find learning rate patience with minimum 3 and then epoch dependent
     if int(params["epochs"]/10) <= 3:
         lr_patience = 3
     else:
         lr_patience = int(params["epochs"]/10)
     
+    # need to be adjusted for validation loss
     callback_es = tf.keras.callbacks.EarlyStopping('loss', verbose=1, patience=5)
     callback_lr = tf.keras.callbacks.ReduceLROnPlateau('loss', verbose=1, patience=lr_patience)
-    model_hist = model.fit(dataprovider, # (x, y, mask)
-                           epochs=params["epochs"],
-                           verbose=1,
-                           steps_per_epoch=num_of_steps,
-                           callbacks=[callback_lr, callback_es]
-                           )
+    # to create a new checkpoint directory
+    chkpnt_dir = "chkpnt_"
+    suffix = 1
+    while True:
+        chkpnt_test_dir = chkpnt_dir + str(suffix)
+        if os.path.isdir(chkpnt_test_dir):
+            suffix += 1
+            chkpnt_test_dir = chkpnt_dir + str(suffix)
+        else:
+            chkpnt_dir = chkpnt_test_dir
+            os.mkdir(chkpnt_dir)
+            break
+    checkpoint_path = chkpnt_dir + "/chkpnt"
+    callback_checkpoint = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, monitor='val_loss', verbose=1, save_best_only=False, save_weights_only=True, mode='auto', save_freq='epoch')
+
+    if params.get("val_path", None) is not None: 
+        model_hist = model.fit(dataprovider, # (x, y, mask)
+                            epochs=params["epochs"],
+                            verbose=1,
+                            steps_per_epoch=num_of_steps,
+                            validation_data=validation_data,
+                            validation_steps=validation_steps,
+                            callbacks=[callback_lr, callback_es, callback_checkpoint]
+                            )
+    else:
+        model_hist = model.fit(dataprovider, # (x, y, mask)
+                            epochs=params["epochs"],
+                            verbose=1,
+                            steps_per_epoch=num_of_steps,
+                            callbacks=[callback_lr, callback_es]
+                            )
     # model = tf.keras.models.load_model('model_b16_fs.h5', compile=False)
     print(model_hist.history)   
+    model.save_weights("custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
     # print(dataprovider.idx_track)
-    # params["take"] = 15
-    dataprovider = DataGenerator(path, **params)
-    
     # plot loss
     x_range = range(1,params["epochs"]+1)
     # print(list(x_range))
+    print(model_hist.history["loss"])
     plt.figure()
     plt.title("Loss plot")
-    plt.plot(x_range, model_hist.history["loss"])
+    plt.plot(x_range, model_hist.history["loss"], label="Training loss")
+    if params.get("val_path", None) is not None:
+        plt.plot(x_range, model_hist.history["val_loss"], label="Validation loss")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
+    plt.legend()
     plt.savefig("loss.png")
     plt.figure()
     plt.title("Learning Rate")
@@ -105,7 +161,16 @@ def main():
     plt.plot( x_range, model_hist.history["lr"])
     plt.savefig("learning_rate.png")
     
-    for j in range(params["take"]):
+    params["epochs"]=1
+    dataprovider = DataGenerator(train_path, **params)
+    if params.get("val_path", None) is not None:
+        validation_data = dataprovider.get_validation_dataset()
+        if params.get("experimental_val_take", None) is not None:
+            validation_steps = params.get("experimental_val_take", None)
+        else:
+            validation_steps = dataprovider.get_validation_length()
+    
+    for j in range(num_of_steps):
         X, y, mask = next(dataprovider)
         # model.save("model_b16_fs.h5")
         mask = mask.numpy()
@@ -126,7 +191,8 @@ def main():
         plt.subplot(133)
         plt.title("mask")
         plt.imshow(mask[0], cmap='viridis_r')
-        plt.savefig("result.png")
+        plt.suptitle("Training Data", fontsize=16)
+        plt.savefig(result_dir + "/result.png")
         for i in range(params["batch_size"]):
             plt.figure()
             plt.subplot(131)
@@ -138,8 +204,46 @@ def main():
             plt.subplot(133)
             plt.title("mask")
             plt.imshow(mask[i], cmap='viridis_r')
+            plt.suptitle("Training Data", fontsize=16)
             plt.savefig(result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
-    model.save_weights("custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
+
+    if params.get("val_path", None) is not None:
+        for j, val in enumerate(validation_data):
+            X, y, mask = val
+            # model.save("model_b16_fs.h5")
+            mask = mask.numpy()
+            y = y.numpy()
+            mask = mask.reshape(y.shape[0:-1])
+            # print(y.shape)
+            # print(mask[0])
+            distance_maps = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
+            test = model.predict(X)
+            test = output_to_distancemaps(test, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
+            plt.figure()
+            plt.subplot(131)
+            plt.title("Ground Truth")
+            plt.imshow(distance_maps[0], cmap='viridis_r')
+            plt.subplot(132)
+            plt.title("Prediction by model")
+            plt.imshow(test[0], cmap='viridis_r')
+            plt.subplot(133)
+            plt.title("mask")
+            plt.imshow(mask[0], cmap='viridis_r')
+            plt.suptitle("Validation Data", fontsize=16)
+            plt.savefig(val_result_dir+"/result.png")
+            for i in range(params["batch_size"]):
+                plt.figure()
+                plt.subplot(131)
+                plt.title("Ground Truth")
+                plt.imshow(distance_maps[i], cmap='viridis_r')
+                plt.subplot(132)
+                plt.title("Prediction by model")
+                plt.imshow(test[i], cmap='viridis_r')
+                plt.subplot(133)
+                plt.title("mask")
+                plt.imshow(mask[i], cmap='viridis_r')
+                plt.suptitle("Validation Data", fontsize=16)
+                plt.savefig(val_result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
 
 
 if __name__=="__main__":
