@@ -1,12 +1,12 @@
 import itertools
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 from utils import to_distogram
-from utils import pad_feature, pad_feature2
-import time
+from utils import pad_feature, pad_feature2, calc_pairwise_distances, output_to_distancemaps
 
 
 NUM_AAS = 20
@@ -88,6 +88,64 @@ def parse_val_tfexample(serialized_input, min_thinning):
         return None, None, None, None
 
 
+def parse_test_tfexample(serialized_input, category):
+    context, features = tf.io.parse_single_sequence_example(serialized_input,
+                            context_features={'id': tf.io.FixedLenFeature((1,), tf.string)},
+                            sequence_features={
+                                    'primary':      tf.io.FixedLenSequenceFeature((1,),               tf.int64),
+                                    'evolutionary': tf.io.FixedLenSequenceFeature((NUM_EVO_ENTRIES,), tf.float32, allow_missing=True),
+                                    'secondary':    tf.io.FixedLenSequenceFeature((1,),               tf.int64,   allow_missing=True),
+                                    'tertiary':     tf.io.FixedLenSequenceFeature((NUM_DIMENSIONS,),  tf.float32, allow_missing=True),
+                                    'mask':         tf.io.FixedLenSequenceFeature((1,),               tf.float32, allow_missing=True)})
+
+    id_ = context['id'][0]
+    if category == 'FM':
+        if id_.numpy().decode("utf-8")[0:2] == category:
+            primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
+            evolutionary = features['evolutionary']
+            secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
+            tertiary = features['tertiary']
+            mask = features['mask'][:, 0]
+
+            pri_length = tf.size(primary)
+            # Generate tertiary masking matrix--if mask is missing then assume all residues are present
+            mask = tf.cond(tf.not_equal(tf.size(mask), 0), lambda: mask, lambda: tf.ones([pri_length]))
+            ter_mask = masking_matrix(mask)
+            return primary, evolutionary, tertiary, ter_mask
+        else:
+            return None, None, None, None
+    elif category == 'TBM':
+        if id_.numpy().decode("utf-8")[0:4] == category + '#':
+            primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
+            evolutionary = features['evolutionary']
+            secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
+            tertiary = features['tertiary']
+            mask = features['mask'][:, 0]
+
+            pri_length = tf.size(primary)
+            # Generate tertiary masking matrix--if mask is missing then assume all residues are present
+            mask = tf.cond(tf.not_equal(tf.size(mask), 0), lambda: mask, lambda: tf.ones([pri_length]))
+            ter_mask = masking_matrix(mask)
+            return primary, evolutionary, tertiary, ter_mask
+        else:
+            return None, None, None, None
+    elif category == 'TBM-hard':
+        if id_.numpy().decode("utf-8")[0:4] == category[0:4]:
+            primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
+            evolutionary = features['evolutionary']
+            secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
+            tertiary = features['tertiary']
+            mask = features['mask'][:, 0]
+
+            pri_length = tf.size(primary)
+            # Generate tertiary masking matrix--if mask is missing then assume all residues are present
+            mask = tf.cond(tf.not_equal(tf.size(mask), 0), lambda: mask, lambda: tf.ones([pri_length]))
+            ter_mask = masking_matrix(mask)
+            return primary, evolutionary, tertiary, ter_mask
+        else:
+            return None, None, None, None
+
+
 def parse_dataset(file_paths):
     """
     This function iterates over all input files
@@ -110,6 +168,19 @@ def parse_val_dataset(file_paths, min_thinning):
     raw_dataset = tf.data.TFRecordDataset(file_paths)
     for data in raw_dataset:
         parsed_data = parse_val_tfexample(data, min_thinning)
+        yield parsed_data
+
+
+def parse_test_dataset(file_paths, category):
+    """
+    This function iterates over all input files
+    and extract record information from each single file
+    Use Yield for optimization purpose causes reading when needed
+    """
+
+    raw_dataset = tf.data.TFRecordDataset(file_paths)
+    for data in raw_dataset:
+        parsed_data = parse_test_tfexample(data, category)
         yield parsed_data
 
 
@@ -139,14 +210,13 @@ def widen_pssm(pssm):
     Converts the LxL pssm matrix into LxLxN shape
     """
     L = pssm.shape[0]
-    wide_tensor = np.zeros(shape=(L,L,NUM_EVO_ENTRIES))
+    wide_tensor = np.zeros(shape=(L, L, NUM_EVO_ENTRIES))
     proto_pssm = tf.make_tensor_proto(pssm)
     npy_pssm = tf.make_ndarray(proto_pssm)
     for i in range(npy_pssm.shape[0]):
         for j in range(npy_pssm.shape[0]):
             new_feature_vec = np.multiply(npy_pssm[i],npy_pssm[j])/2
             wide_tensor[i,j,:] = new_feature_vec
-            break
     return tf.convert_to_tensor(wide_tensor, dtype=tf.float32)
 
 
@@ -225,13 +295,19 @@ def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index
 
 
 if __name__ == '__main__':
-    # add your test flag here and put it below
-    tfrecords_path = '/home/ghalia/Documents/LabCourse/casp7/training/100/1'
-    for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
-        #print(primary)
-        #widen_pssm(evolutionary[0:3])
-        evol = widen_pssm(evolutionary)
-        primary = widen_seq(primary)
-        conc = tf.concat([primary, evol],axis=2)
-        print(conc.shape)
-        break
+    path_test_samples = "P:/casp7/casp7/testing/1"
+    category = "TBM-hard"
+    for primary, evolutionary, tertiary, ter_mask in tqdm(parse_test_dataset(path_test_samples, category)):
+        if primary is not None:
+            dist_map = calc_pairwise_distances(tertiary)
+            dist_map = to_distogram(dist_map, 2, 22, 64)
+            dist_map = tf.keras.backend.expand_dims(dist_map, axis=0)
+            dist_map = output_to_distancemaps(dist_map, 2, 22, 64)
+            plt.figure()
+            plt.subplot(121)
+            plt.title("Ground Truth")
+            plt.imshow(dist_map[0], cmap='viridis_r')
+            plt.subplot(122)
+            plt.title("Mask")
+            plt.imshow(ter_mask, cmap='viridis_r')
+            plt.show()
