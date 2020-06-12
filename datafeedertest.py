@@ -8,6 +8,7 @@ import glob
 import os
 import time
 import warnings
+<<<<<<< HEAD
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings("ignore")
 tf.autograph.set_verbosity(0)
@@ -28,7 +29,7 @@ def main():
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
-    "features":"primary", # this will decide the number of channel, with primary 20, secondary 20+something
+    "features":"pri-evo", # this will decide the number of channel, with primary 20, pri-evo 41
     "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
@@ -49,8 +50,8 @@ def main():
     print("Logging the parameters used")
     for k, v in params.items():
         print("{} = {}".format(k,v))
-    time.sleep(20)    
-    
+    time.sleep(20)
+
     # setting up directory to add results after training
     result_dir = "test_results"
     if os.path.isdir(result_dir) is False:
@@ -61,28 +62,28 @@ def main():
             os.mkdir(val_result_dir)
     # instantiate data provider
     dataprovider = DataGenerator(train_path, **params)
-    
+
     print("Total Dataset size = {}".format(len(dataprovider)))
-    
+
     if params.get("val_path", None) is not None:
         validation_data = dataprovider.get_validation_dataset()
         validation_steps = dataprovider.get_validation_length()
         print("Validation Dataset size = {}".format(validation_steps))
-    
+
     # this is just for experimenting
     if params.get("experimental_val_take", None) is not None:
         validation_steps = params.get("experimental_val_take", None)
         print("Experimenting on validation Dataset size = {}".format(validation_steps))
-        
+
     # if path is wrong this will throw error
     if len(dataprovider) <=0:
         raise ValueError("Data reading failed!")
-    
+
     K.clear_session()
     strategy = tf.distribute.MirroredStrategy()
     print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
     # with strategy.scope():
-    
+
     nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
                 batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.1)
     model = nn.model()
@@ -91,8 +92,8 @@ def main():
                 # loss=tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE))
     model.summary()
     #loss = 89064.46875
-    
-    
+
+
     # to find number of steps for one epoch
     try:
         num_of_steps = params["take"]
@@ -104,7 +105,7 @@ def main():
         lr_patience = 3
     else:
         lr_patience = int(params["epochs"]/10)
-    
+
     # need to be adjusted for validation loss
     callback_es = tf.keras.callbacks.EarlyStopping('loss', verbose=1, patience=5)
     callback_lr = tf.keras.callbacks.ReduceLROnPlateau('loss', verbose=1, patience=lr_patience)
@@ -123,7 +124,7 @@ def main():
     checkpoint_path = chkpnt_dir + "/chkpnt"
     callback_checkpoint = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, monitor='val_loss', verbose=1, save_best_only=False, save_weights_only=True, mode='auto', save_freq='epoch')
 
-    if params.get("val_path", None) is not None: 
+    if params.get("val_path", None) is not None:
         model_hist = model.fit(dataprovider, # (x, y, mask)
                             epochs=params["epochs"],
                             verbose=1,
@@ -141,11 +142,11 @@ def main():
                             )
     # model = tf.keras.models.load_model('model_b16_fs.h5', compile=False)
     print(model_hist.history)
-    
+
     model_dir = "model_weights"
     if os.path.isdir(model_dir) is False:
         os.mkdir(model_dir)
-       
+
     model.save_weights(model_dir + "/custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
     # print(dataprovider.idx_track)
     # plot loss
@@ -214,7 +215,7 @@ def main():
                 plt.suptitle("Training Data", fontsize=16)
                 plt.savefig(result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
                 plt.close("all")
-    
+
     if validation_plot:
         if params.get("val_path", None) is not None:
             for j, val in enumerate(validation_data):
@@ -241,7 +242,7 @@ def main():
                 plt.suptitle("Validation Data", fontsize=16)
                 plt.savefig(val_result_dir+"/result.png")
                 plt.close("all")
-                
+
                 for i in range(params["batch_size"]):
                     plt.figure()
                     plt.subplot(131)
