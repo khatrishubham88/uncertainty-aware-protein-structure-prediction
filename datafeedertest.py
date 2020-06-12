@@ -8,9 +8,9 @@ import glob
 import os
 import time
 import warnings
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-# warnings.filterwarnings("ignore")
-# tf.autograph.set_verbosity(0)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+warnings.filterwarnings("ignore")
+tf.autograph.set_verbosity(0)
 from utils import *
 # tf.config.experimental_run_functions_eagerly(True)
 
@@ -21,8 +21,8 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    train_path = glob.glob("../proteinnet/data/casp7/training/100/*")
-    val_path = glob.glob("../proteinnet/data/casp7/validation/*")
+    train_path = glob.glob("/storage/remote/atcremers45/s0244/casp7/training/100/*")
+    val_path = glob.glob("/storage/remote/atcremers45/s0244/casp7/validation/*")
     train_plot = True
     validation_plot = True
     params = {
@@ -89,7 +89,7 @@ def main():
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.003),
                 loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
                 # loss=tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE))
-    tf.print(model.summary())
+    model.summary()
     #loss = 89064.46875
     
     
