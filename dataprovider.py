@@ -11,7 +11,7 @@ from tensorflow.python.ops import array_ops
 class DataGenerator(object):
     'Generates data for Keras'
     def __init__(self, path: list, crop_size=64,
-                 datasize=None, features="primary",
+                 datasize=None, features="pri-evo",
                  padding_value=-1, minimum_bin_val=2,
                  maximum_bin_val=22, num_bins=64,
                  batch_size=100, shuffle=False,
@@ -73,9 +73,9 @@ class DataGenerator(object):
 
 
     def construct_feeder(self):
-        def flat_map(primary, tertiary, mask):
+        def flat_map(features, distogram, mask):
             # tf.print(array_ops.shape(mask))
-            return (primary, tertiary, tf.reshape(mask, shape=(-1,)))
+            return (features, distogram, tf.reshape(mask, shape=(-1,)))
 
         self.datafeeder = tf.data.Dataset.from_generator(self.transformation_generator,
                                                          output_types=(tf.float32, tf.float32, tf.float32),
@@ -106,6 +106,7 @@ class DataGenerator(object):
             primary, evolutionary, tertiary, ter_mask = parse_tfexample(data)
             # print(primary.shape)
             transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
+                                                    features=self.features,
                                                     crop_size=self.crop_size,
                                                     padding_value=self.padding_value,
                                                     minimum_bin_val=self.minimum_bin_val,
@@ -118,7 +119,7 @@ class DataGenerator(object):
 
 
     @staticmethod
-    def generator_transform(primary, evolutionary, tertiary, tertiary_mask, crop_size, random_crop=True,
+    def generator_transform(primary, evolutionary, tertiary, tertiary_mask, features, crop_size, random_crop=True,
                             padding_value=-1, minimum_bin_val=2, maximum_bin_val=22, num_bins=64):
 
         # correcting the datatype to avoid errors
@@ -134,7 +135,7 @@ class DataGenerator(object):
         dist_map = calc_pairwise_distances(tertiary)
         padding_size = math.ceil(primary.shape[0]/crop_size)*crop_size - primary.shape[0]
         # perform cropping + necessary padding
-        random_crop = create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size,
+        random_crop = create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index, crop_size, padding_value, padding_size,
                                   minimum_bin_val, maximum_bin_val, num_bins)
         return random_crop
 

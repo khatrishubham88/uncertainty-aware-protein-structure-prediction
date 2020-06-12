@@ -18,11 +18,11 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    path = glob.glob("P:/casp7/casp7/training/100/*")
+    path = glob.glob("/home/ghalia/Documents/LabCourse/casp7/training/100/*")
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
-    "features":"primary", # this will decide the number of channel, with primary 20, secondary 20+something
+    "features":"pri-evo", # this will decide the number of channel, with primary 20, secondary 20+something
     "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
@@ -33,19 +33,19 @@ def main():
     "random_crop":True,         # if cropping should be random, this has to be implemented later
     "flattening":True,
     # "take":16,
-    "epochs":30,
+    "epochs":3,
     "prefetch": True
     }
     print("Logging the parameters used")
     for k, v in params.items():
         print("{} = {}".format(k,v))
-    time.sleep(60)    
+    time.sleep(60)
     result_dir = "test_results"
     if os.path.isdir(result_dir) is False:
         os.mkdir(result_dir)
     dataprovider = DataGenerator(path, **params)
     K.clear_session()
-    nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
+    nn = ResNet(input_channels=41, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
                 batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.1)
     model = nn.model()
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.003),
@@ -65,10 +65,11 @@ def main():
                            )
     # model = tf.keras.models.load_model('model_b16_fs.h5', compile=False)
     print(model_hist.history)
-    print(dataprovider.idx_track)
-    # params["take"] = 15
+    #print(dataprovider.idx_track)
+    model.save('first-model')
+    params["take"] = 15
     dataprovider = DataGenerator(path, **params)
-    
+
     for j in range(params["take"]):
         X, y, mask = next(dataprovider)
         # model.save("model_b16_fs.h5")

@@ -131,7 +131,7 @@ def widen_seq(seq):
         pos = np.argwhere(numpy_seq==i)
         for j,k in itertools.product(pos, repeat=2):
             wide_tensor[j,k,:] = encoding[i,:]
-    return tf.convert_to_tensor(wide_tensor, dtype=tf.int64)
+    return tf.convert_to_tensor(wide_tensor, dtype=tf.float32)
 
 
 def widen_pssm(pssm):
@@ -144,8 +144,9 @@ def widen_pssm(pssm):
     npy_pssm = tf.make_ndarray(proto_pssm)
     for i in range(npy_pssm.shape[0]):
         for j in range(npy_pssm.shape[0]):
-            new_feature_vec = (npy_pssm[i]*npy_pssm[j])/2
+            new_feature_vec = np.multiply(npy_pssm[i],npy_pssm[j])/2
             wide_tensor[i,j,:] = new_feature_vec
+            break
     return tf.convert_to_tensor(wide_tensor, dtype=tf.float32)
 
 
@@ -176,28 +177,51 @@ def create_crop(primary, dist_map, tertiary_mask, index, crop_size, padding_valu
         return primary_2D_crop, distogram_crop, ter_mask_crop
 
 
-def create_crop2(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size, minimum_bin_val,
-                    maximum_bin_val, num_bins):
+def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index, crop_size, padding_value, padding_size,
+                          minimum_bin_val, maximum_bin_val, num_bins):
     """
     If the sequence length is > crop_size this function
     crops a random (crop_size x crop_size) window from the calculated features
     Otherwise, it padds the features to the crop_size and returns them
     """
-
-    if primary.shape[0] >= crop_size:
-        primary = widen_seq(primary)
-        primary = primary[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size, :]
-        dist_map = dist_map[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        dist_map = to_distogram(dist_map, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
-        tertiary_mask = tertiary_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        return (primary, dist_map, tertiary_mask)
+    if(features=='primary'):
+        if primary.shape[0] >= crop_size:
+            primary = widen_seq(primary)
+            primary_crop = primary[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size, :]
+            dist_map_crop = dist_map[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
+            distogram_crop = to_distogram(dist_map_crop, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
+            tertiary_mask_crop = tertiary_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
+            return (primary_crop, distogram_crop, tertiary_mask_crop)
+        else:
+            primary = widen_seq(primary)
+            primary = pad_feature2(primary, crop_size, padding_value, padding_size, 2)
+            dist_map = pad_feature2(dist_map, crop_size, padding_value, padding_size, 2)
+            distogram = to_distogram(dist_map, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
+            tertiary_mask = pad_feature2(tertiary_mask, crop_size, 0, padding_size, 2)
+            return (primary, distogram, tertiary_mask)
     else:
-        primary = widen_seq(primary)
-        primary = pad_feature2(primary, crop_size, padding_value, padding_size, 2)
-        dist_map = pad_feature2(dist_map, crop_size, padding_value, padding_size, 2)
-        dist_map = to_distogram(dist_map, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
-        tertiary_mask = pad_feature2(tertiary_mask, crop_size, 0, padding_size, 2)
-        return (primary, dist_map, tertiary_mask)
+        if(features=='pri-evo'):
+            if primary.shape[0] >= crop_size:
+                primary = widen_seq(primary)
+                evol = widen_pssm(evolutionary)
+                primary_crop = primary[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size, :]
+                evol_crop = evol[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size, :]
+                pri_evol_crop = tf.concat([primary_crop, evol_crop],axis=2)
+                dist_map_crop = dist_map[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
+                distogram_crop = to_distogram(dist_map_crop, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
+                tertiary_mask_crop = tertiary_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
+                return (pri_evol_crop, distogram_crop, tertiary_mask_crop)
+            else:
+                primary = widen_seq(primary)
+                evol = widen_pssm(evolutionary)
+                primary = pad_feature2(primary, crop_size, padding_value, padding_size, 2)
+                evol = pad_feature2(evol, crop_size, padding_value, padding_size, 2)
+                pri_evol = tf.concat([primary, evol],axis=2)
+                dist_map = pad_feature2(dist_map, crop_size, padding_value, padding_size, 2)
+                distogram = to_distogram(dist_map, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
+                tertiary_mask = pad_feature2(tertiary_mask, crop_size, 0, padding_size, 2)
+                return (pri_evol, distogram, tertiary_mask)
+
 
 
 if __name__ == '__main__':
@@ -206,8 +230,8 @@ if __name__ == '__main__':
     for primary, evolutionary, tertiary, ter_mask in parse_dataset(tfrecords_path):
         #print(primary)
         #widen_pssm(evolutionary[0:3])
-        start = time.time()
-        print(widen_pssm(evolutionary).shape)
-        total = time.time() - start
-        print(total)
+        evol = widen_pssm(evolutionary)
+        primary = widen_seq(primary)
+        conc = tf.concat([primary, evol],axis=2)
+        print(conc.shape)
         break
