@@ -8,6 +8,8 @@ import glob
 import os
 import time
 import warnings
+import sys
+sys.setrecursionlimit(100000)
 # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 # warnings.filterwarnings("ignore")
 # tf.autograph.set_verbosity(0)
@@ -21,8 +23,8 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    train_path = glob.glob("../proteinnet/data/casp7/training/100/*")
-    val_path = glob.glob("../proteinnet/data/casp7/validation/*")
+    train_path = glob.glob("/storage/remote/atcremers45/s0237/casp7/training/100/*")
+    val_path = glob.glob("/storage/remote/atcremers45/s0237/casp7/validation/*")
     train_plot = True
     validation_plot = True
     params = {
@@ -33,7 +35,7 @@ def main():
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
     "num_bins":64,         # num of bins to use
-    "batch_size":16,       # batch size for training, check if this is needed here or should be done directly in fit?
+    "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
     "shuffle":True,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
     "random_crop":True,         # if cropping should be random, this has to be implemented later
@@ -83,12 +85,12 @@ def main():
     print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
     # with strategy.scope():
 
-    nn = ResNet(input_channels=20, output_channels=64, num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
+    nn = ResNet(input_channels=41, output_channels=64, num_blocks=[28,192], num_channels=[256,128], dilation=[1, 2, 4, 8],
                 batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.1)
     model = nn.model()
-    model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.003),
-                loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
-                # loss=tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE))
+    model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.06),
+                #loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
+                 loss=tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE))
     tf.print(model.summary())
     #loss = 89064.46875
 
