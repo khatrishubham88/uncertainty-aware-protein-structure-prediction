@@ -23,7 +23,7 @@ class DataGenerator(object):
                  flattening=True, epochs=1, prefetch = False, experimental_val_take = None,
                  val_shuffle=None, val_shuffle_buffer_size=None, validation_batch_size=None,
                  val_random_crop=None, val_prefetch=None,
-                 validation_thinning_threshold=50):
+                 validation_thinning_threshold=50, training_validation_ratio=None):
         'Initialization'
         self.path = path
         self.raw_dataset = tf.data.TFRecordDataset(self.path)
@@ -84,7 +84,14 @@ class DataGenerator(object):
                 self.val_shuffle_buffer_size = self.shuffle_buffer_size
 
             self.validation_raw_dataset = tf.data.TFRecordDataset(self.val_path)
-            self.validation_datasize = self.fetch_validation_datasize()
+            self.training_validation_ratio = training_validation_ratio
+            if self.training_validation_ratio is not None:
+                self.validation_datasize = int(self.training_validation_ratio * self.datasize)
+                original_validation_datasize = self.fetch_validation_datasize()
+                num_repeats = int(np.floor(self.validation_datasize / original_validation_datasize))
+                self.validation_raw_dataset = self.validation_raw_dataset.repeat(num_repeats)
+            else:
+                self.validation_datasize = self.fetch_validation_datasize()
 
             if self.val_shuffle:
                 self.validation_raw_dataset = self.validation_raw_dataset.shuffle(self.val_shuffle_buffer_size)
@@ -217,6 +224,7 @@ class DataGenerator(object):
             primary, evolutionary, tertiary, ter_mask = parse_val_tfexample(data, self.validation_thinning_threshold)
             if all(ret is not None for ret in [primary, evolutionary, tertiary, ter_mask]):
                 transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
+                                                                    features=self.features,
                                                                     crop_size=self.crop_size,
                                                                     padding_value=self.padding_value,
                                                                     minimum_bin_val=self.minimum_bin_val,
