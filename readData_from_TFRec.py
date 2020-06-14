@@ -6,7 +6,7 @@ import tensorflow as tf
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 from utils import to_distogram
-from utils import pad_feature, pad_feature2, calc_pairwise_distances, output_to_distancemaps
+from utils import pad_feature2, calc_pairwise_distances, output_to_distancemaps
 
 
 NUM_AAS = 20

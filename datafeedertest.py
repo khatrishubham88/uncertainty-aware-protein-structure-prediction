@@ -38,21 +38,31 @@ def main():
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
     "num_bins":64,         # num of bins to use
+<<<<<<< HEAD
     "batch_size":4,       # batch size for training, check if this is needed here or should be done directly in fit?
     "shuffle":True,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":True,         # if cropping should be random, this has to be implemented later
+    "random_crop":False,         # if cropping should be random, this has to be implemented later
     "flattening":True,
-    # "take":8,
+    "take":8,
     "epochs":30,
     "prefetch": True,
     "val_path": val_path,
     "validation_thinning_threshold": 50,
+    "training_validation_ratio": 0.2,
     # "experimental_val_take": 2
     }
     archi_style = "one_group"
-    #archi_style = "two_group_prospr"
-    #archi_style = "two_group_alphafold"
+    # archi_style = "two_group_prospr"
+    # archi_style = "two_group_alphafold"
+    if archi_style=="one_group":
+        print("Training on Minifold architecture!")
+    elif archi_style == "two_group_prospr":
+        print("Training on ProSPR architecture!")
+    elif archi_style == "two_group_alphafold":
+        print("Training on Alphafold architecture!")
+    else:
+        print("It is a wrong architecture!")
 
     # printing the above params for rechecking
     print("Logging the parameters used")
@@ -164,7 +174,9 @@ def main():
     if os.path.isdir(model_dir) is False:
         os.mkdir(model_dir)
 
-    model.save_weights(model_dir + "/custom_model_weights_epochs_" + str(params["epochs"]) + "_batch_size_" + str(params["batch_size"]))
+    model.save_weights(model_dir + "/custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
+    model.save(model_dir + '/' + archi_style)
+
     # plot loss
     x_range = range(1,params["epochs"] + 1)
     plt.figure()
