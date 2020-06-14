@@ -119,9 +119,11 @@ class DataGenerator(object):
         return self
 
     def __next__(self):
-        with self.lock:
-            output = next(self.iterator)
-            return output
+        # with self.lock:
+        #     output = next(self.iterator)
+        #     return output
+        output = next(self.iterator)
+        return output
 
     def get_validation_dataset(self):
         if self.make_val_feeder:
