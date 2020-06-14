@@ -252,15 +252,15 @@ def precision_metric(y_true, y_predict):
         y_true: ground truth distograms of shape [nr_samples, 64, 64, 64]
     output:presicion using contact maps
      """
-     #distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
-     #distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
-     contact_maps_predicted = contact_map_from_distancemap(y_predict)
-     contact_maps_true = contact_map_from_distancemap(y_true)
-     total_accu = 0
+     distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
+     distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
+     contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
+     contact_maps_true = contact_map_from_distancemap(distance_maps_true)
+     total_prec = 0
      for sample in range(contact_maps_true.shape[0]):
-         sample_accu = precision_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten())
-         total_accu = total_accu + sample_accu
-     return (total_accu/contact_maps_true.shape[0])
+         sample_prec = precision_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten())
+         total_prec = total_prec + sample_prec
+     return (total_prec/contact_maps_true.shape[0])
 
 
 def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold):
