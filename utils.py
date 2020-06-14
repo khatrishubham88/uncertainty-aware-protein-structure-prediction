@@ -213,14 +213,6 @@ def random_index(primary, crop_size):
     return index
 
 
-def pad_feature(feature, crop_size, padding_value, padding_size):
-    # pad on left and bottom
-    padding = tf.constant([[0, padding_size]])
-    rank = tf.rank(feature).numpy()
-    padding = tf.repeat(padding, rank, axis=0)
-    padded_feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
-    return padded_feature
-
 def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold):
     padding = tf.constant([[0, padding_size]])
     empty = tf.constant([[0, 0]])
