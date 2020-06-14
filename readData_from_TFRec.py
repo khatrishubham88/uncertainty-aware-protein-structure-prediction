@@ -220,33 +220,6 @@ def widen_pssm(pssm):
     return tf.convert_to_tensor(wide_tensor, dtype=tf.float32)
 
 
-def create_crop(primary, dist_map, tertiary_mask, index, crop_size, padding_value, padding_size, minimum_bin_val,
-                    maximum_bin_val, num_bins):
-    #if primary.shape[0] % crop_size != 0:
-    if primary.shape[0] >= crop_size:
-        #padded_primary = pad_feature(primary, crop_size, padding_value, padding_size)
-        #padded_dist_map = pad_feature(dist_map, crop_size, padding_value, padding_size)
-        #padded_ter_mask = pad_feature(tertiary_mask, crop_size, padding_value, padding_size)
-        primary_2D = widen_seq(primary)
-        # create crops from padded 2D features
-        primary_2D_crop = primary_2D[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size,:]
-        dist_map_crop = dist_map[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        ter_mask_crop = tertiary_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        distogram_crop = to_distogram(dist_map_crop, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
-        return primary_2D_crop, distogram_crop, ter_mask_crop
-
-    else:
-        padded_primary = pad_feature(primary, crop_size, padding_value, padding_size)
-        padded_dist_map = pad_feature(dist_map, crop_size, padding_value, padding_size)
-        padded_ter_mask = pad_feature(tertiary_mask, crop_size, 0, padding_size)
-        primary_2D = widen_seq(padded_primary)
-        primary_2D_crop = primary_2D[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size,:]
-        dist_map_crop = padded_dist_map[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        ter_mask_crop = padded_ter_mask[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size]
-        distogram_crop = to_distogram(dist_map_crop, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
-        return primary_2D_crop, distogram_crop, ter_mask_crop
-
-
 def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index, crop_size, padding_value, padding_size,
                           minimum_bin_val, maximum_bin_val, num_bins):
     """
