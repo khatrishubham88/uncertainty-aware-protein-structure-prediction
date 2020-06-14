@@ -6,7 +6,7 @@ import tensorflow as tf
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 from utils import to_distogram
-from utils import pad_feature2, calc_pairwise_distances, output_to_distancemaps, contact_map_from_distancemap, accuracy_metric
+from utils import pad_feature2, calc_pairwise_distances, output_to_distancemaps, contact_map_from_distancemap, accuracy_metric, precision_metric
 
 
 NUM_AAS = 20
@@ -279,5 +279,5 @@ if __name__ == '__main__':
         #print(dist_map.shape)
         #cont_maps = contact_map_from_distancemap(dist_map)
         #print(cont_maps.flatten())
-        print(accuracy_metric(dist_map, dist_map))
+        print(precision_metric(dist_map, dist_map))
         break

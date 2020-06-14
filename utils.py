@@ -6,6 +6,7 @@ import tensorflow.keras.backend as K
 from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_crossentropy
 from tensorflow.python.keras.utils import losses_utils
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
 
 
 class CategoricalCrossentropyForDistributed(LossFunctionWrapper):
@@ -240,6 +241,24 @@ def accuracy_metric(y_true, y_predict):
      total_accu = 0
      for sample in range(contact_maps_true.shape[0]):
          sample_accu = accuracy_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten())
+         total_accu = total_accu + sample_accu
+     return (total_accu/contact_maps_true.shape[0])
+
+
+def precision_metric(y_true, y_predict):
+     """
+     input:
+        y_predict: predicted distograms of shape [nr_samples, 64, 64, 64]
+        y_true: ground truth distograms of shape [nr_samples, 64, 64, 64]
+    output:presicion using contact maps
+     """
+     #distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
+     #distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
+     contact_maps_predicted = contact_map_from_distancemap(y_predict)
+     contact_maps_true = contact_map_from_distancemap(y_true)
+     total_accu = 0
+     for sample in range(contact_maps_true.shape[0]):
+         sample_accu = precision_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten())
          total_accu = total_accu + sample_accu
      return (total_accu/contact_maps_true.shape[0])
 
