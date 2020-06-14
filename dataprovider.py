@@ -8,6 +8,8 @@ import glob
 import math
 import warnings
 from tensorflow.python.ops import array_ops
+import threading
+
 
 class DataGenerator(object):
     'Generates data for Keras'
@@ -39,6 +41,7 @@ class DataGenerator(object):
         self.datasize = None
         self.epochs = epochs
         self.prefetch = prefetch
+        self.lock = threading.Lock()
         if datasize is not None:
             self.datasize = datasize
         else:
@@ -116,8 +119,9 @@ class DataGenerator(object):
         return self
 
     def __next__(self):
-        output = next(self.iterator)
-        return output
+        with self.lock:
+            output = next(self.iterator)
+            return output
 
     def get_validation_dataset(self):
         if self.make_val_feeder:

@@ -23,8 +23,8 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    train_path = glob.glob("/storage/remote/atcremers45/s0237/casp7/training/100/*")
-    val_path = glob.glob("/storage/remote/atcremers45/s0237/casp7/validation/*")
+    train_path = glob.glob("../../proteinnet/data/casp7/training/100/*")
+    val_path = glob.glob("../../proteinnet/data/casp7/validation/*")
     train_plot = True
     validation_plot = True
     params = {
@@ -47,6 +47,10 @@ def main():
     "validation_thinning_threshold": 50,
     # "experimental_val_take": 2
     }
+    #archi_style = "one_group"
+    archi_style = "two_group_prospr"
+    #archi_style = "two_group_alphafold"
+    
     # printing the above params for rechecking
     print("Logging the parameters used")
     for k, v in params.items():
@@ -84,15 +88,30 @@ def main():
     strategy = tf.distribute.MirroredStrategy()
     print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
     # with strategy.scope():
+    if params["features"]=="primary":
+        inp_channel = 20
+    elif params["features"]=="pri-evo":
+        inp_channel = 41
 
-    nn = ResNet(input_channels=41, output_channels=64, num_blocks=[28,192], num_channels=[256,128], dilation=[1, 2, 4, 8],
+    if archi_style == "one_group":
+        num_blocks = [28]
+        num_channels = [64]
+    elif archi_style == "two_group_prospr":
+        num_blocks = [28, 192]
+        num_channels = [128, 64]
+    elif archi_style == "two_group_alphafold":
+        num_blocks = [28, 192]
+        num_channels = [256, 128]
+    else:
+        raise ValueError("Wrong Architecture Selected!")
+
+    nn = ResNet(input_channels=inp_channel, output_channels=64, num_blocks=num_blocks, num_channels=num_channels, dilation=[1, 2, 4, 8],
                 batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.1)
     model = nn.model()
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.06),
-                #loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
-                 loss=tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE))
+                  loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
     tf.print(model.summary())
-    #loss = 89064.46875
+    
 
 
     # to find number of steps for one epoch
@@ -102,11 +121,9 @@ def main():
         num_of_steps = len(dataprovider)
 
     # to find learning rate patience with minimum 3 and then epoch dependent
-    if int(params["epochs"]/10) <= 3:
-        lr_patience = 3
-    else:
-        lr_patience = int(params["epochs"]/10)
+    lr_patience = 2
 
+    
     # need to be adjusted for validation loss
     callback_es = tf.keras.callbacks.EarlyStopping('loss', verbose=1, patience=5)
     callback_lr = tf.keras.callbacks.ReduceLROnPlateau('loss', verbose=1, patience=lr_patience)
@@ -141,7 +158,6 @@ def main():
                             steps_per_epoch=num_of_steps,
                             callbacks=[callback_lr, callback_es]
                             )
-    # model = tf.keras.models.load_model('model_b16_fs.h5', compile=False)
     print(model_hist.history)
 
     model_dir = "model_weights"
@@ -149,10 +165,8 @@ def main():
         os.mkdir(model_dir)
 
     model.save_weights(model_dir + "/custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
-    # print(dataprovider.idx_track)
     # plot loss
     x_range = range(1,params["epochs"]+1)
-    # print(list(x_range))
     plt.figure()
     plt.title("Loss plot")
     plt.plot(x_range, model_hist.history["loss"], label="Training loss")
@@ -184,8 +198,6 @@ def main():
             mask = mask.numpy()
             y = y.numpy()
             mask = mask.reshape(y.shape[0:-1])
-            # print(y.shape)
-            # print(mask[0])
             distance_maps = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
             test = model.predict(X)
             test = output_to_distancemaps(test, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
@@ -225,8 +237,6 @@ def main():
                 mask = mask.numpy()
                 y = y.numpy()
                 mask = mask.reshape(y.shape[0:-1])
-                # print(y.shape)
-                # print(mask[0])
                 distance_maps = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
                 test = model.predict(X)
                 test = output_to_distancemaps(test, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
