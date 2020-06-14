@@ -33,7 +33,7 @@ def main():
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
-    "features":"pri", # this will decide the number of channel, with primary 20, pri-evo 41
+    "features":"primary", # this will decide the number of channel, with primary 20, pri-evo 41
     "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
@@ -97,8 +97,8 @@ def main():
         inp_channel = 41
 
     if archi_style == "one_group":
-        num_blocks = [28]
-        num_channels = [64]
+        num_blocks = [60]
+        num_channels = [128]
     elif archi_style == "two_group_prospr":
         num_blocks = [28, 192]
         num_channels = [128, 64]
@@ -164,9 +164,9 @@ def main():
     if os.path.isdir(model_dir) is False:
         os.mkdir(model_dir)
 
-    model.save_weights(model_dir + "/custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
+    model.save_weights(model_dir + "/custom_model_weights_epochs_" + str(params["epochs"]) + "_batch_size_" + str(params["batch_size"]))
     # plot loss
-    x_range = range(1,params["epochs"]+1)
+    x_range = range(1,params["epochs"] + 1)
     plt.figure()
     plt.title("Loss plot")
     plt.plot(x_range, model_hist.history["loss"], label="Training loss")
@@ -180,10 +180,10 @@ def main():
     plt.title("Learning Rate")
     plt.xlabel("Epochs")
     plt.ylabel("Learning Rate")
-    plt.plot( x_range, model_hist.history["lr"])
+    plt.plot(x_range, model_hist.history["lr"])
     plt.savefig("learning_rate.png")
     plt.close("all")
-    params["epochs"]=1
+    params["epochs"] = 1
     dataprovider = DataGenerator(train_path, **params)
     if params.get("val_path", None) is not None:
         validation_data = dataprovider.get_validation_dataset()
