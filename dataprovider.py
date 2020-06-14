@@ -3,7 +3,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 from utils import expand_dim, calc_pairwise_distances, load_npy_binary, output_to_distancemaps
 from utils import masked_categorical_cross_entropy, random_index
-from readData_from_TFRec import parse_tfexample, create_crop2, create_crop, parse_val_tfexample
+from readData_from_TFRec import parse_tfexample, create_crop2, parse_val_tfexample, parse_test_tfexample
 import glob
 import math
 import warnings
@@ -23,7 +23,7 @@ class DataGenerator(object):
                  flattening=True, epochs=1, prefetch = False, experimental_val_take = None,
                  val_shuffle=None, val_shuffle_buffer_size=None, validation_batch_size=None,
                  val_random_crop=None, val_prefetch=None,
-                 validation_thinning_threshold=50):
+                 validation_thinning_threshold=50, training_validation_ratio=None):
         'Initialization'
         self.path = path
         self.raw_dataset = tf.data.TFRecordDataset(self.path)
@@ -84,7 +84,14 @@ class DataGenerator(object):
                 self.val_shuffle_buffer_size = self.shuffle_buffer_size
 
             self.validation_raw_dataset = tf.data.TFRecordDataset(self.val_path)
-            self.validation_datasize = self.fetch_validation_datasize()
+            self.training_validation_ratio = training_validation_ratio
+            if self.training_validation_ratio is not None:
+                self.validation_datasize = int(self.training_validation_ratio * self.datasize)
+                original_validation_datasize = self.fetch_validation_datasize()
+                num_repeats = int(np.floor(self.validation_datasize / original_validation_datasize))
+                self.validation_raw_dataset = self.validation_raw_dataset.repeat(num_repeats)
+            else:
+                self.validation_datasize = self.fetch_validation_datasize()
 
             if self.val_shuffle:
                 self.validation_raw_dataset = self.validation_raw_dataset.shuffle(self.val_shuffle_buffer_size)
@@ -217,6 +224,7 @@ class DataGenerator(object):
             primary, evolutionary, tertiary, ter_mask = parse_val_tfexample(data, self.validation_thinning_threshold)
             if all(ret is not None for ret in [primary, evolutionary, tertiary, ter_mask]):
                 transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
+                                                                    features=self.features,
                                                                     crop_size=self.crop_size,
                                                                     padding_value=self.padding_value,
                                                                     minimum_bin_val=self.minimum_bin_val,
@@ -252,56 +260,78 @@ class DataGenerator(object):
 
 # Used for minor testing of data provider
 if __name__=="__main__":
-    path = glob.glob("../proteinnet/data/casp7/training/100/*")
-    params = {
-    "crop_size":64, # this is the LxL
-    "datasize":None,
-    "features":"primary", # this will decide the number of channel, with primary 20, secondary 20+something
-    "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
-    "minimum_bin_val":2, # starting bin size
-    "maximum_bin_val":22, # largest bin size
-    "num_bins":64,         # num of bins to use
-    "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
-    "shuffle":False,        # if wanna shuffle the data, this is not necessary
-    "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":True,         # if cropping should be random, this has to be implemented later
-    "flattening":True,
-    "take": 6,
-    "epochs":2,
-    "prefetch": False
-    }
-    dataprovider = DataGenerator(path, **params)
-    num_data_points = 0
-    print(len(dataprovider))
-    tensors = []
-    for n, count in enumerate(dataprovider):
-        # print(len(count))
-        # print(count[0].shape)
-        # print(count[1].shape)
-        # print(count[2].shape)
-        if n>=params["take"]:
-            # print("printing for element n = {}, and tensor = {}".format(n%params["take"], tf.math.equal(tensors[n%params["take"]], count[0])))
-            mismatch = True
-            num_mismatch = 0
-            for i in range(count[0].shape[0]):
-                for j in range(count[0].shape[1]):
-                    for k in range(count[0].shape[2]):
-                        for l in range(count[0].shape[3]):
-                            # print(tf.math.equal(tensors[i-params["take"]], count[0]).numpy()[i,j,k,l] is False)
-                            if tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
-                                pass
-                            elif not tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
-                                num_mismatch +=1
-                                if mismatch:
-                                    print("old val = {}, new val = {}, at i = {}, j = {}, k = {}, l = {}".format(tensors[n%params["take"]][i,j,k,l], count[0][i,j,k,l], i, j, k, l))
-                                    mismatch = False
-            print("Total mismatch for element n = {} => {}".format(n%params["take"], num_mismatch))
-        else:
-            tensors.append(count[0])
-        # print(count[2].shape)
-        # sh = count[1].shape[0:-1]
-        # print(sh)
-        # reshaped_test = tf.reshape(count[2], shape=sh)
-        # print(reshaped_test)
-        num_data_points += 1
-    print(num_data_points)
+    # path = glob.glob("../proteinnet/data/casp7/training/100/*")
+    # params = {
+    # "crop_size":64, # this is the LxL
+    # "datasize":None,
+    # "features":"primary", # this will decide the number of channel, with primary 20, secondary 20+something
+    # "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
+    # "minimum_bin_val":2, # starting bin size
+    # "maximum_bin_val":22, # largest bin size
+    # "num_bins":64,         # num of bins to use
+    # "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
+    # "shuffle":False,        # if wanna shuffle the data, this is not necessary
+    # "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
+    # "random_crop":True,         # if cropping should be random, this has to be implemented later
+    # "flattening":True,
+    # "take": 6,
+    # "epochs":2,
+    # "prefetch": False
+    # }
+    # dataprovider = DataGenerator(path, **params)
+    # num_data_points = 0
+    # print(len(dataprovider))
+    # tensors = []
+    # for n, count in enumerate(dataprovider):
+    #     # print(len(count))
+    #     # print(count[0].shape)
+    #     # print(count[1].shape)
+    #     # print(count[2].shape)
+    #     if n>=params["take"]:
+    #         # print("printing for element n = {}, and tensor = {}".format(n%params["take"], tf.math.equal(tensors[n%params["take"]], count[0])))
+    #         mismatch = True
+    #         num_mismatch = 0
+    #         for i in range(count[0].shape[0]):
+    #             for j in range(count[0].shape[1]):
+    #                 for k in range(count[0].shape[2]):
+    #                     for l in range(count[0].shape[3]):
+    #                         # print(tf.math.equal(tensors[i-params["take"]], count[0]).numpy()[i,j,k,l] is False)
+    #                         if tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
+    #                             pass
+    #                         elif not tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
+    #                             num_mismatch +=1
+    #                             if mismatch:
+    #                                 print("old val = {}, new val = {}, at i = {}, j = {}, k = {}, l = {}".format(tensors[n%params["take"]][i,j,k,l], count[0][i,j,k,l], i, j, k, l))
+    #                                 mismatch = False
+    #         print("Total mismatch for element n = {} => {}".format(n%params["take"], num_mismatch))
+    #     else:
+    #         tensors.append(count[0])
+    #     # print(count[2].shape)
+    #     # sh = count[1].shape[0:-1]
+    #     # print(sh)
+    #     # reshaped_test = tf.reshape(count[2], shape=sh)
+    #     # print(reshaped_test)
+    #     num_data_points += 1
+    # print(num_data_points)
+    path = glob.glob("../../proteinnet/data/casp7/testing/*")
+    print("Test set path = {}".format(path))
+    raw_dataset = tf.data.TFRecordDataset(path)
+    count_fm = 0
+    count_tbm = 0
+    count_tbm_hard = 0
+    for data in raw_dataset:
+        primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'FM')
+        if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
+            print(primary.shape)
+            count_fm += 1
+        primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'TBM')
+        if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
+            print(primary.shape)
+            count_tbm += 1
+        primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'TBM-hard')
+        if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
+            print(primary.shape)
+            count_tbm_hard += 1
+    print("Number of FM Models = {}, TBM models = {}, TBM-Hard model = {}".format(count_fm, count_tbm, count_tbm_hard))
+    
+    
