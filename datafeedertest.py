@@ -26,12 +26,12 @@ def main():
     train_path = glob.glob("P:/casp7/casp7/training/100/*")
     val_path = glob.glob("P:/casp7/casp7/validation/1")
 
-    train_plot = True
-    validation_plot = True
+    train_plot = False
+    validation_plot = False
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
-    "features":"pri-evo", # this will decide the number of channel, with primary 20, pri-evo 41
+    "features":"primary", # this will decide the number of channel, with primary 20, pri-evo 41
     "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
@@ -39,11 +39,11 @@ def main():
     "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
     "shuffle":False,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":False,         # if cropping should be random, this has to be implemented later
+    "random_crop":True,         # if cropping should be random, this has to be implemented later
     "flattening":True,
-    "take":8,
+    #"take":8,
     "epochs":30,
-    "prefetch": True,
+    "prefetch": False,
     "val_path": val_path,
     "validation_thinning_threshold": 50,
     "training_validation_ratio": 0.2,
@@ -90,20 +90,20 @@ def main():
         print("Experimenting on validation Dataset size = {}".format(validation_steps))
 
     # if path is wrong this will throw error
-    if len(dataprovider) <=0:
+    if len(dataprovider) <= 0:
         raise ValueError("Data reading failed!")
 
     K.clear_session()
     strategy = tf.distribute.MirroredStrategy()
     print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
     # with strategy.scope():
-    if params["features"]=="primary":
+    if params["features"] == "primary":
         inp_channel = 20
-    elif params["features"]=="pri-evo":
+    elif params["features"] == "pri-evo":
         inp_channel = 41
 
     if archi_style == "one_group":
-        num_blocks = [28]
+        num_blocks = [12]
         num_channels = [64]
     elif archi_style == "two_group_prospr":
         num_blocks = [28, 192]
@@ -114,14 +114,14 @@ def main():
     else:
         raise ValueError("Wrong Architecture Selected!")
 
-    nn = ResNet(input_channels=inp_channel, output_channels=64, num_blocks=num_blocks, num_channels=num_channels, dilation=[1, 2, 4, 8],
-                batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.1)
+    """
+    nn = ResNet(input_channels=inp_channel, output_channels=64, num_blocks=num_blocks, num_channels=num_channels,
+                dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.15)
     model = nn.model()
-    model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.06),
+    model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.006),
                   loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
     tf.print(model.summary())
-    
-
+    """
 
     # to find number of steps for one epoch
     try:
@@ -129,13 +129,13 @@ def main():
     except:
         num_of_steps = len(dataprovider)
 
+    """
     # to find learning rate patience with minimum 3 and then epoch dependent
     lr_patience = 2
 
-    
     # need to be adjusted for validation loss
-    callback_es = tf.keras.callbacks.EarlyStopping('loss', verbose=1, patience=5)
-    callback_lr = tf.keras.callbacks.ReduceLROnPlateau('loss', verbose=1, patience=lr_patience)
+    callback_es = tf.keras.callbacks.EarlyStopping('val_loss', verbose=1, patience=5)
+    callback_lr = tf.keras.callbacks.ReduceLROnPlateau('val_loss', verbose=2, patience=lr_patience)
     # to create a new checkpoint directory
     chkpnt_dir = "chkpnt_"
     suffix = 1
@@ -194,7 +194,9 @@ def main():
     plt.plot( x_range, model_hist.history["lr"])
     plt.savefig("learning_rate.png")
     plt.close("all")
-    params["epochs"]=1
+    params["epochs"] = 1
+    """
+
     dataprovider = DataGenerator(train_path, **params)
     if params.get("val_path", None) is not None:
         validation_data = dataprovider.get_validation_dataset()
