@@ -1,0 +1,2 @@
+model_checkpoint_path: "custom_model_weights_epochs_30_batch_size_4"
+all_model_checkpoint_paths: "custom_model_weights_epochs_30_batch_size_4"
