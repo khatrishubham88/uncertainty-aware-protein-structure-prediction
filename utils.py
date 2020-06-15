@@ -5,6 +5,8 @@ import tensorflow.keras.backend as K
 # from readData_from_TFRec import widen_seq
 from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_crossentropy
 from tensorflow.python.keras.utils import losses_utils
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
 
 
 class CategoricalCrossentropyForDistributed(LossFunctionWrapper):
@@ -213,13 +215,53 @@ def random_index(primary, crop_size):
     return index
 
 
-def pad_feature(feature, crop_size, padding_value, padding_size):
-    # pad on left and bottom
-    padding = tf.constant([[0, padding_size]])
-    rank = tf.rank(feature).numpy()
-    padding = tf.repeat(padding, rank, axis=0)
-    padded_feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
-    return padded_feature
+def contact_map_from_distancemap(distance_maps):
+  """if distance between 2 AA is smaller than 8 Angstrom set to contact
+  otherwise not in contact:
+  input: distance_maps of shape [nr_samples, 64, 64]
+  output: contact_maps of shape [nr_samples, 64, 64]
+  """
+  contact_maps = np.zeros(shape=(distance_maps.shape[0], distance_maps.shape[1], distance_maps.shape[2]))
+  for batch in range(distance_maps.shape[0]):
+      contact_maps[batch] = np.where(distance_maps[batch] > 8, 0, 1) # dist >8 yield 0 otherwise 1
+  return contact_maps
+
+
+def accuracy_metric(y_true, y_predict):
+     """
+     input:
+        y_predict: predicted distograms of shape [nr_samples, 64, 64, 64]
+        y_true: ground truth distograms of shape [nr_samples, 64, 64, 64]
+    output:accuracy using contact maps
+     """
+     distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
+     distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
+     contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
+     contact_maps_true = contact_map_from_distancemap(distance_maps_true)
+     total_accu = 0
+     for sample in range(contact_maps_true.shape[0]):
+         sample_accu = accuracy_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten())
+         total_accu = total_accu + sample_accu
+     return (total_accu/contact_maps_true.shape[0])
+
+
+def precision_metric(y_true, y_predict):
+     """
+     input:
+        y_predict: predicted distograms of shape [nr_samples, 64, 64, 64]
+        y_true: ground truth distograms of shape [nr_samples, 64, 64, 64]
+    output:presicion using contact maps
+     """
+     distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
+     distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
+     contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
+     contact_maps_true = contact_map_from_distancemap(distance_maps_true)
+     total_prec = 0
+     for sample in range(contact_maps_true.shape[0]):
+         sample_prec = precision_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten())
+         total_prec = total_prec + sample_prec
+     return (total_prec/contact_maps_true.shape[0])
+
 
 def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold):
     padding = tf.constant([[0, padding_size]])
