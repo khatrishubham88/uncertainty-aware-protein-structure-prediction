@@ -9,12 +9,13 @@ import os
 import time
 import warnings
 import sys
+
+from utils import *
+
 sys.setrecursionlimit(100000)
 # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 # warnings.filterwarnings("ignore")
 # tf.autograph.set_verbosity(0)
-from utils import *
-# tf.config.experimental_run_functions_eagerly(True)
 
 def main():
     """
@@ -36,8 +37,8 @@ def main():
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
     "num_bins":64,         # num of bins to use
-    "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
-    "shuffle":False,        # if wanna shuffle the data, this is not necessary
+    "batch_size":4,       # batch size for training, check if this is needed here or should be done directly in fit?
+    "shuffle":True,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
     "random_crop":True,         # if cropping should be random, this has to be implemented later
     "flattening":True,
@@ -60,6 +61,7 @@ def main():
         print("Training on Alphafold architecture!")
     else:
         print("It is a wrong architecture!")
+
     # printing the above params for rechecking
     print("Logging the parameters used")
     for k, v in params.items():
@@ -103,8 +105,10 @@ def main():
         inp_channel = 41
 
     if archi_style == "one_group":
-        num_blocks = [12]
-        num_channels = [64]
+
+        num_blocks = [60]
+        num_channels = [128]
+
     elif archi_style == "two_group_prospr":
         num_blocks = [28, 192]
         num_channels = [128, 64]
@@ -114,14 +118,12 @@ def main():
     else:
         raise ValueError("Wrong Architecture Selected!")
 
-    """
     nn = ResNet(input_channels=inp_channel, output_channels=64, num_blocks=num_blocks, num_channels=num_channels,
                 dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.15)
     model = nn.model()
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.006),
                   loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
     tf.print(model.summary())
-    """
 
     # to find number of steps for one epoch
     try:
@@ -136,6 +138,7 @@ def main():
     # need to be adjusted for validation loss
     callback_es = tf.keras.callbacks.EarlyStopping('val_loss', verbose=1, patience=5)
     callback_lr = tf.keras.callbacks.ReduceLROnPlateau('val_loss', verbose=2, patience=lr_patience)
+
     # to create a new checkpoint directory
     chkpnt_dir = "chkpnt_"
     suffix = 1
@@ -175,9 +178,9 @@ def main():
 
     model.save_weights(model_dir + "/custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
     model.save(model_dir + '/' + archi_style)
-    
+
     # plot loss
-    x_range = range(1,params["epochs"]+1)
+    x_range = range(1,params["epochs"] + 1)
     plt.figure()
     plt.title("Loss plot")
     plt.plot(x_range, model_hist.history["loss"], label="Training loss")
@@ -191,11 +194,12 @@ def main():
     plt.title("Learning Rate")
     plt.xlabel("Epochs")
     plt.ylabel("Learning Rate")
-    plt.plot( x_range, model_hist.history["lr"])
+    plt.plot(x_range, model_hist.history["lr"])
     plt.savefig("learning_rate.png")
     plt.close("all")
     params["epochs"] = 1
-    """
+
+
 
     dataprovider = DataGenerator(train_path, **params)
     if params.get("val_path", None) is not None:
