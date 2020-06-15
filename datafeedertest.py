@@ -21,8 +21,8 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    train_path = glob.glob("../proteinnet/data/casp7/training/100/*")
-    val_path = glob.glob("../proteinnet/data/casp7/validation/*")
+    train_path = glob.glob("P:/casp7/casp7/training/100/*")
+    val_path = glob.glob("P:/casp7/casp7/validation/1")
     train_plot = True
     validation_plot = True
     params = {
