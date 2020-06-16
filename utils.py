@@ -7,6 +7,7 @@ from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_cros
 from tensorflow.python.keras.utils import losses_utils
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score
+tf.compat.v1.enable_eager_execution()
 
 
 class CategoricalCrossentropyForDistributed(LossFunctionWrapper):
@@ -252,6 +253,10 @@ def precision_metric(y_true, y_predict):
         y_true: ground truth distograms of shape [nr_samples, 64, 64, 64]
     output:presicion using contact maps
      """
+     #print(type(y_true))
+     print(type(y_predict))
+     #print(y_true.shape)
+     #print(y_predict.sha)
      distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
      distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
      contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)

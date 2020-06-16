@@ -8,6 +8,7 @@ import glob
 import os
 import time
 import warnings
+from utils import accuracy_metric, precision_metric
 import sys
 sys.setrecursionlimit(100000)
 # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -23,9 +24,9 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
-    train_path = glob.glob("../../proteinnet/data/casp7/training/100/*")
-    val_path = glob.glob("../../proteinnet/data/casp7/validation/*")
-    train_plot = True
+    train_path = glob.glob("/home/ghalia/Documents/LabCourse/casp7/training/100/1")
+    val_path = glob.glob("/home/ghalia/Documents/LabCourse/casp7/validation/*")
+    train_plot = False
     validation_plot = True
     params = {
     "crop_size":64, # this is the LxL
@@ -38,10 +39,10 @@ def main():
     "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
     "shuffle":False,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":False,         # if cropping should be random, this has to be implemented later
+    "random_crop":True,         # if cropping should be random, this has to be implemented later
     "flattening":True,
-    "take":8,
-    "epochs":30,
+    #"take":8,
+    "epochs":2,
     "prefetch": True,
     "val_path": val_path,
     "validation_thinning_threshold": 50,
@@ -117,9 +118,10 @@ def main():
                 batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.1)
     model = nn.model()
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.06),
-                  loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
+                  loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]),
+                  metrics=[tf.keras.metrics.BinaryAccuracy()])
     tf.print(model.summary())
-    
+
 
 
     # to find number of steps for one epoch
@@ -131,7 +133,7 @@ def main():
     # to find learning rate patience with minimum 3 and then epoch dependent
     lr_patience = 2
 
-    
+
     # need to be adjusted for validation loss
     callback_es = tf.keras.callbacks.EarlyStopping('loss', verbose=1, patience=5)
     callback_lr = tf.keras.callbacks.ReduceLROnPlateau('loss', verbose=1, patience=lr_patience)
@@ -174,7 +176,7 @@ def main():
 
     model.save_weights(model_dir + "/custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
     model.save(model_dir + '/' + archi_style)
-    
+
     # plot loss
     x_range = range(1,params["epochs"]+1)
     plt.figure()
