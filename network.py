@@ -1,7 +1,7 @@
 from tensorflow.keras import Input
 from tensorflow.keras.layers import Activation, Add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
 from trainable_model import CustomModel
-from tensorflow.keras.initializers import he_normal
+from tensorflow.keras.regularizers import l2
 
 """
 To-Do List:
@@ -13,7 +13,7 @@ To-Do List:
 
 class ResNet():
     def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
-                 non_linearity='elu', dropout_rate=0.0):
+                 non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4):
         super(ResNet, self).__init__()
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
@@ -27,6 +27,7 @@ class ResNet():
         self.batch_size = batch_size
         self.non_linearity = non_linearity
         self.dropout_rate = dropout_rate
+        self.reg_strength = reg_strength
 
     def model(self):
         # Create the input layer
@@ -55,11 +56,11 @@ class ResNet():
                 if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
                     if self.num_channels[idx] > self.num_channels[idx + 1]:
                         x = Conv2D(filters=self.num_channels[idx + 1], kernel_size=1, strides=1, padding='same',
-                                   kernel_initializer="he_normal",
+                                   kernel_initializer="he_normal", kernel_regularizer=l2(self.reg_strength),
                                    data_format='channels_last', name='downscale_' + str(idx) + 'to' + str(idx + 1))(x)
                     elif self.num_channels[idx] < self.num_channels[idx + 1]:
                         x = Conv2DTranspose(filters=self.num_channels[idx + 1], kernel_size=1, strides=1,
-                                            kernel_initializer="he_normal",
+                                            kernel_initializer="he_normal", kernel_regularizer=l2(self.reg_strength),
                                             data_format='channels_last',
                                             padding='same', name='upscale_' + str(idx) + 'to' + str(idx + 1))(x)
                 elif ((block_num + 1) == num_set_blocks) and ((idx + 1) == len(self.num_blocks)):
@@ -79,21 +80,21 @@ class ResNet():
         if first == 'True':
             if self.input_channels > self.num_channels[0]:
                 layers.append(Conv2D(filters=self.num_channels[0], kernel_size=1, strides=1, padding='same',
-                                     kernel_initializer="he_normal",
+                                     kernel_initializer="he_normal", kernel_regularizer=l2(self.reg_strength),
                                      data_format='channels_last', name='downscale_conv2d'))
             elif self.input_channels < self.num_channels[0]:
                 layers.append(Conv2DTranspose(filters=self.num_channels[0], kernel_size=1, strides=1, padding='same',
-                                              kernel_initializer="he_normal",
+                                              kernel_initializer="he_normal", kernel_regularizer=l2(self.reg_strength),
                                               data_format='channels_last', name='downscale_conv2dtranspose'))
             layers.append(BatchNormalization(name='downscale_bn'))
         elif first == 'False':
             if self.num_channels[-1] < self.output_channels:
                 layers.append(Conv2DTranspose(filters=self.output_channels, kernel_size=1, strides=1, padding='same',
-                                              kernel_initializer="he_normal",
+                                              kernel_initializer="he_normal", kernel_regularizer=l2(self.reg_strength),
                                               data_format='channels_last', name='upscale_conv2d'))
             elif self.num_channels[-1] > self.output_channels:
                 layers.append(Conv2D(filters=self.output_channels, kernel_size=1, strides=1, padding='same',
-                                     kernel_initializer="he_normal",
+                                     kernel_initializer="he_normal", kernel_regularizer=l2(self.reg_strength),
                                      data_format='channels_last', name='upscale_conv2d'))
 
         return layers
@@ -106,7 +107,7 @@ class ResNet():
         layers.append(Activation(activation=self.non_linearity,
                                  name='non_linearity_down_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2D(filters=num_filters//2, kernel_size=1, strides=stride, padding='same',
-                             kernel_initializer="he_normal",
+                             kernel_initializer="he_normal", kernel_regularizer=l2(self.reg_strength),
                              data_format='channels_last', name='conv_down_' + str(set_block) + '_' + str(block_num)))
 
         # Strided convolution
@@ -115,7 +116,7 @@ class ResNet():
                                  name='non_linearity_conv_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2D(filters=num_filters//2, kernel_size=kernel_size, strides=stride, padding='same',
                              dilation_rate=atou_rate, data_format='channels_last',
-                             kernel_initializer="he_normal",
+                             kernel_initializer="he_normal", kernel_regularizer=l2(self.reg_strength),
                              name='conv_dil_' + str(set_block) + '_' + str(block_num)))
 
         # Project up
@@ -124,7 +125,7 @@ class ResNet():
                                  name='non_linearity_up_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2DTranspose(filters=num_filters, kernel_size=1, strides=stride, padding='same',
                                       data_format='channels_last',
-                                      kernel_initializer="he_normal",
+                                      kernel_initializer="he_normal", kernel_regularizer=l2(self.reg_strength),
                                       name='conv_up_' + str(set_block) + '_' + str(block_num)))
 
         return layers

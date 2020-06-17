@@ -8,6 +8,7 @@ import glob
 import os
 import time
 import warnings
+from utils import accuracy_metric, precision_metric
 import sys
 
 from utils import *
@@ -24,11 +25,19 @@ def main():
         paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
     X, mask, y = gather_data_seq_under_limit(paths, 64)
     """
+
     train_path = glob.glob("P:/casp7/casp7/training/100/*")
     val_path = glob.glob("P:/casp7/casp7/validation/1")
-
     train_plot = False
     validation_plot = False
+
+    """
+    train_path = glob.glob("/home/ghalia/Documents/LabCourse/casp7/training/100/1")
+    val_path = glob.glob("/home/ghalia/Documents/LabCourse/casp7/validation/*")
+    train_plot = False
+    validation_plot = True
+    """
+
     params = {
     "crop_size":64, # this is the LxL
     "datasize":None,
@@ -45,6 +54,7 @@ def main():
     #"take":8,
     "epochs":30,
     "prefetch": False,
+
     "val_path": val_path,
     "validation_thinning_threshold": 50,
     "training_validation_ratio": 0.2,
@@ -119,11 +129,15 @@ def main():
         raise ValueError("Wrong Architecture Selected!")
 
     nn = ResNet(input_channels=inp_channel, output_channels=64, num_blocks=num_blocks, num_channels=num_channels,
-                dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.15)
+                dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
+                dropout_rate=0.15, reg_strength=1e-4)
     model = nn.model()
+
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.006),
                   loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
+
     tf.print(model.summary())
+
 
     # to find number of steps for one epoch
     try:
@@ -131,9 +145,10 @@ def main():
     except:
         num_of_steps = len(dataprovider)
 
-    """
+
     # to find learning rate patience with minimum 3 and then epoch dependent
     lr_patience = 2
+
 
     # need to be adjusted for validation loss
     callback_es = tf.keras.callbacks.EarlyStopping('val_loss', verbose=1, patience=5)
