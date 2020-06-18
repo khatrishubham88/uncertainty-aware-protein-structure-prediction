@@ -253,16 +253,16 @@ class DataGenerator(object):
                 index = [0,0]
             else:
                 if (len(primary)%2 == 0):
-                    index = [len(primary/2), len(primary)/2]
+                    index = [len(primary//2), len(primary)//2]
                 else:
                     if(len(primary)%3 == 0):
-                        index = [len(primary/3), len(primary)/3]
+                        index = [len(primary//3), len(primary)//3]
                     else:
                         if(len(primary)%5 == 0):
-                            index = [len(primary/5), len(primary)/5]
+                            index = [len(primary//5), len(primary)//5]
                         else:
                             if(len(primary)%7 == 0):
-                                index = [len(primary/7), len(primary)/7]
+                                index = [len(primary//7), len(primary)//7]
                             else:
                                 index = [0,0]
         dist_map = calc_pairwise_distances(tertiary)
