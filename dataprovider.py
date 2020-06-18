@@ -246,10 +246,25 @@ class DataGenerator(object):
         maximum_bin_val = float(maximum_bin_val)
         num_bins = int(num_bins)
 
-        if random_crop:
+        if random_crop:   #this is the case for training data
             index = random_index(primary, crop_size)
-        else:
-            index = [0, 0]
+        else:             #this is the case for validation data
+            if len(primary) <= crop_size:
+                index = [0,0]
+            else:
+                if (len(primary)%2 == 0):
+                    index = [len(primary/2), len(primary)/2]
+                else:
+                    if(len(primary)%3 == 0):
+                        index = [len(primary/3), len(primary)/3]
+                    else:
+                        if(len(primary)%5 == 0):
+                            index = [len(primary/5), len(primary)/5]
+                        else:
+                            if(len(primary)%7 == 0):
+                                index = [len(primary/7), len(primary)/7]
+                            else:
+                                index = [0,0]
         dist_map = calc_pairwise_distances(tertiary)
         padding_size = math.ceil(primary.shape[0]/crop_size)*crop_size - primary.shape[0]
         # perform cropping + necessary padding
@@ -333,4 +348,3 @@ if __name__=="__main__":
             print(primary.shape)
             count_tbm_hard += 1
     print("Number of FM Models = {}, TBM models = {}, TBM-Hard model = {}".format(count_fm, count_tbm, count_tbm_hard))
-

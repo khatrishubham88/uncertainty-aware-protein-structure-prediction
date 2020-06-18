@@ -268,16 +268,40 @@ def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index
 
 
 if __name__ == '__main__':
-    path = "/home/ghalia/Documents/LabCourse/casp7/training/100/1"
+    path = "/home/ghalia/Documents/LabCourse/casp7/validation/1"
     #category = "TBM-hard"
-    for primary, evolutionary, tertiary, ter_mask in parse_dataset(path):
-        dist_map = calc_pairwise_distances(tertiary)
+    i = 0
+    j = 0
+    k = 0
+    l = 0
+    x = 0
+    total = 0
+    for primary, evolutionary, tertiary, ter_mask in parse_val_dataset(path,50):
+        #dist_map = calc_pairwise_distances(tertiary)
         #print(dist_map[0:2])
-        dist_map = to_distogram(dist_map, 2, 22, 64)
-        dist_map = tf.keras.backend.expand_dims(dist_map, axis=0)
-        dist_map = output_to_distancemaps(dist_map, 2, 22, 64) #(1,580,580)
+        #dist_map = to_distogram(dist_map, 2, 22, 64)
+        #dist_map = tf.keras.backend.expand_dims(dist_map, axis=0)
+        #dist_map = output_to_distancemaps(dist_map, 2, 22, 64) #(1,580,580)
         #print(dist_map.shape)
         #cont_maps = contact_map_from_distancemap(dist_map)
         #print(cont_maps.flatten())
-        print(precision_metric(dist_map, dist_map))
-        break
+        #print(precision_metric(dist_map, dist_map))
+        if (primary != None):
+            total = total +1
+            if(len(primary) > 64):
+                if(len(primary)%2 == 0):
+                    i = i +1
+                else:
+                    if(len(primary)%3 == 0):
+                        j = j +1
+                    else:
+                        if(len(primary)%5 == 0):
+                            k = k+1
+                        else:
+                            if(len(primary)%7 == 0):
+                                l = l+1
+    print('total:', total)
+    print('mod2=0', i)
+    print('mod3=0', j)
+    print('mod5=0', k)
+    print('mod7=0', l)
