@@ -287,21 +287,17 @@ if __name__ == '__main__':
         #print(cont_maps.flatten())
         #print(precision_metric(dist_map, dist_map))
         if (primary != None):
-            total = total +1
-            if(len(primary) > 64):
-                if(len(primary)%2 == 0):
-                    i = i +1
+            if (len(primary)%2 == 0):
+                index = [len(primary)//2, len(primary)//2]
+            else:
+                if(len(primary)%3 == 0):
+                    index = [len(primary)//3, len(primary)//3]
                 else:
-                    if(len(primary)%3 == 0):
-                        j = j +1
+                    if(len(primary)%5 == 0):
+                        index = [len(primary)//5, len(primary)//5]
                     else:
-                        if(len(primary)%5 == 0):
-                            k = k+1
+                        if(len(primary)%7 == 0):
+                            index = [len(primary)//7, len(primary)//7]
                         else:
-                            if(len(primary)%7 == 0):
-                                l = l+1
-    print('total:', total)
-    print('mod2=0', i)
-    print('mod3=0', j)
-    print('mod5=0', k)
-    print('mod7=0', l)
+                            index = [0,0]
+            print(index)
