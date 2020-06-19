@@ -149,7 +149,7 @@ def main():
             break
     checkpoint_path = chkpnt_dir + "/chkpnt"
     callback_checkpoint = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='auto', save_freq='epoch')
-
+    model.load("minifold_trained/"+archi_style"/saved_model.pb")
     if params.get("val_path", None) is not None:
         model_hist = model.fit(dataprovider, # (x, y, mask)
                             epochs=params["epochs"],
@@ -176,7 +176,7 @@ def main():
     model.save(model_dir + '/' + archi_style)
     
     # plot loss
-    x_range = range(1,params["epochs"]+1)
+    x_range = range(1,len(model_hist.history["loss"])+1)
     plt.figure()
     plt.title("Loss plot")
     plt.plot(x_range, model_hist.history["loss"], label="Training loss")
