@@ -2,3 +2,5 @@
 venv/*
 *.pyc
 __pycache__/*
+chkpnt_3/*
+model_weights/*
