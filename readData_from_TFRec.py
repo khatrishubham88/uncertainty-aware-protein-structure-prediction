@@ -269,35 +269,5 @@ def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index
 
 if __name__ == '__main__':
     path = "/home/ghalia/Documents/LabCourse/casp7/validation/1"
-    #category = "TBM-hard"
-    i = 0
-    j = 0
-    k = 0
-    l = 0
-    x = 0
-    total = 0
     for primary, evolutionary, tertiary, ter_mask in parse_val_dataset(path,50):
-        #dist_map = calc_pairwise_distances(tertiary)
-        #print(dist_map[0:2])
-        #dist_map = to_distogram(dist_map, 2, 22, 64)
-        #dist_map = tf.keras.backend.expand_dims(dist_map, axis=0)
-        #dist_map = output_to_distancemaps(dist_map, 2, 22, 64) #(1,580,580)
-        #print(dist_map.shape)
-        #cont_maps = contact_map_from_distancemap(dist_map)
-        #print(cont_maps.flatten())
-        #print(precision_metric(dist_map, dist_map))
-        if (primary != None):
-            if (len(primary)%2 == 0):
-                index = [len(primary)//2, len(primary)//2]
-            else:
-                if(len(primary)%3 == 0):
-                    index = [len(primary)//3, len(primary)//3]
-                else:
-                    if(len(primary)%5 == 0):
-                        index = [len(primary)//5, len(primary)//5]
-                    else:
-                        if(len(primary)%7 == 0):
-                            index = [len(primary)//7, len(primary)//7]
-                        else:
-                            index = [0,0]
-            print(index)
+        break

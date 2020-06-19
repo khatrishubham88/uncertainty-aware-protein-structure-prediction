@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from utils import expand_dim, calc_pairwise_distances, load_npy_binary, output_to_distancemaps
-from utils import masked_categorical_cross_entropy, random_index
+from utils import masked_categorical_cross_entropy, random_index, get_index
 from readData_from_TFRec import parse_tfexample, create_crop2, parse_val_tfexample, parse_test_tfexample
 import glob
 import math
@@ -249,22 +249,8 @@ class DataGenerator(object):
         if random_crop:   #this is the case for training data
             index = random_index(primary, crop_size)
         else:             #this is the case for validation data
-            if len(primary) <= crop_size:
-                index = [0,0]
-            else:
-                if (len(primary)%2 == 0):
-                    index = [len(primary)//2, len(primary)//2]
-                else:
-                    if(len(primary)%3 == 0):
-                        index = [len(primary)//3, len(primary)//3]
-                    else:
-                        if(len(primary)%5 == 0):
-                            index = [len(primary)//5, len(primary)//5]
-                        else:
-                            if(len(primary)%7 == 0):
-                                index = [len(primary)//7, len(primary)//7]
-                            else:
-                                index = [0,0]
+            index = get_index(primary, crop_size)
+
         dist_map = calc_pairwise_distances(tertiary)
         padding_size = math.ceil(primary.shape[0]/crop_size)*crop_size - primary.shape[0]
         # perform cropping + necessary padding
