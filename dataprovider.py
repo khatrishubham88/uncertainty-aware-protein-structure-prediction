@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from utils import expand_dim, calc_pairwise_distances, load_npy_binary, output_to_distancemaps
-from utils import masked_categorical_cross_entropy, random_index, get_index
+from utils import masked_categorical_cross_entropy, random_index
 from readData_from_TFRec import parse_tfexample, create_crop2, parse_val_tfexample, parse_test_tfexample
 import glob
 import copy
@@ -64,7 +64,7 @@ class DataGenerator(object):
             self.validation_thinning_threshold = validation_thinning_threshold
             self.experimental_val_take = experimental_val_take
             self.val_idx = []
-            
+
             self.val_shuffle = val_shuffle
             if self.val_shuffle is None:
                 self.val_shuffle = self.shuffle
@@ -90,7 +90,7 @@ class DataGenerator(object):
             if self.training_validation_ratio is not None:
                 self.validation_datasize = int(self.training_validation_ratio * self.datasize)
                 self.val_mask = []
-                
+
                 original_validation_datasize = self.fetch_validation_datasize()
                 num_val_repeats = int(np.floor(self.validation_datasize / original_validation_datasize))
                 self.validation_datasize = self.make_validation_idx_buffer(num_val_repeats, original_validation_datasize)
@@ -135,7 +135,7 @@ class DataGenerator(object):
         #     return output
         output = next(self.iterator)
         return output
-    
+
     def test_val_size(self):
         count = 0
         for data in self.validation_raw_dataset:
@@ -206,11 +206,11 @@ class DataGenerator(object):
         for _ in self.raw_dataset:
             count +=1
         return count
-    
+
     def pop_idx(self):
         item, self.idx_iterator = self.idx_iterator[0], self.idx_iterator[1:]
         return int(item)
-        
+
     def make_validation_idx_buffer(self, repeats, raw_data_size):
         # number of times to repeat the data
         big_data_size = 0
@@ -251,9 +251,9 @@ class DataGenerator(object):
                         else:
                             self.val_idx.append([0,0])
                             self.val_mask.append(True)
-                    protein_count += 1 
+                    protein_count += 1
         return self.val_mask.count(True)
-    
+
     def fetch_validation_datasize(self):
         count = 0
         for data in self.validation_raw_dataset:
@@ -364,7 +364,7 @@ if __name__=="__main__":
     # start = 30
     # end = 35
     # num_of_elems = 0
-    
+
     # for i in range(params["epochs"]):
     #     count = -1
     #     for idx, (x, y, mask) in enumerate(validation_data):
@@ -398,7 +398,7 @@ if __name__=="__main__":
     print("remaining element in the index array = {}".format(dataprovider.idx_iterator.shape[0]))
     del dataprovider
     del validation_data
-    
+
     dataprovider = DataGenerator(path, **params)
     validation_data = dataprovider.get_validation_dataset()
     validation_steps = dataprovider.get_validation_length()
@@ -414,8 +414,8 @@ if __name__=="__main__":
                 print("Success for array = {}".format(count))
         elif idx > end:
             break
-                    
-    
+
+
     # num_data_points = 0
     # print(len(dataprovider))
     # tensors = []

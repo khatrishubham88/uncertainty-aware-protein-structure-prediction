@@ -213,48 +213,7 @@ def random_index(primary, crop_size):
         index.extend([np.random.randint(0, primary.shape[0] - crop_size),
                       np.random.randint(0, primary.shape[0] - crop_size)])
     return index
-
-
-def get_index(primary, crop_size):
-    """
-    This function returns an index to do the cropping
-    for the validation samples.
-    """
-    index = []
-    if primary.shape[0] <= crop_size:
-        index.extend([0, 0])
-    else:
-        if (primary.shape[0]%2 == 0):
-            base = primary.shape[0]//2
-            if (base + crop_size) > primary.shape[0]:
-                index.extend([base - ((base + crop_size) -primary.shape[0]) , base - ((base + crop_size) -primary.shape[0])])
-            else:
-                index.extend([primary.shape[0]//2, primary.shape[0]//2])
-        else:
-            if (primary.shape[0]%3 == 0):
-                base = primary.shape[0]//3
-                if (base + crop_size) > primary.shape[0]:
-                    index.extend([base - ((base + crop_size) -primary.shape[0]) , base - ((base + crop_size) -primary.shape[0])])
-                else:
-                    index.extend([primary.shape[0]//3, primary.shape[0]//3])
-            else:
-                if (primary.shape[0]%5 == 0):
-                    base = primary.shape[0]//5
-                    if (base + crop_size) > primary.shape[0]:
-                        index.extend([base - ((base + crop_size) -primary.shape[0]) , base - ((base + crop_size) -primary.shape[0])])
-                    else:
-                        index.extend([primary.shape[0]//5, primary.shape[0]//5])
-                else:
-                    if (primary.shape[0]%7 == 0):
-                        base = primary.shape[0]//7
-                        if (base + crop_size) > primary.shape[0]:
-                            index.extend([base - ((base + crop_size) -primary.shape[0]) , base - ((base + crop_size) -primary.shape[0])])
-                        else:
-                            index.extend([primary.shape[0]//7, primary.shape[0]//7])
-                    else:
-                        index.extend([0, 0])
-    return index
-
+    
 
 def contact_map_from_distancemap(distance_maps):
   """if distance between 2 AA is smaller than 8 Angstrom set to contact
