@@ -19,24 +19,10 @@ sys.setrecursionlimit(100000)
 # tf.autograph.set_verbosity(0)
 
 def main():
-    """
-    paths = []
-    for i in range(1, 136):
-        paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
-    X, mask, y = gather_data_seq_under_limit(paths, 64)
-    """
-
     train_path = glob.glob("P:/casp7/casp7/training/100/*")
     val_path = glob.glob("P:/casp7/casp7/validation/1")
     train_plot = False
     validation_plot = True
-
-    """
-    train_path = glob.glob("/home/ghalia/Documents/LabCourse/casp7/training/100/1")
-    val_path = glob.glob("/home/ghalia/Documents/LabCourse/casp7/validation/*")
-    train_plot = False
-    validation_plot = True
-    """
 
     params = {
     "crop_size":64, # this is the LxL
