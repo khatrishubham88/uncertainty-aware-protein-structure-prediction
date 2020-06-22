@@ -216,7 +216,7 @@ def random_index(primary, crop_size):
         index.extend([np.random.randint(0, primary.shape[0] - crop_size),
                       np.random.randint(0, primary.shape[0] - crop_size)])
     return index
-
+    
 
 def contact_map_from_distancemap(distance_maps):
   """if distance between 2 AA is smaller than 8 Angstrom set to contact

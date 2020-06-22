@@ -32,13 +32,14 @@ def main():
     "minimum_bin_val":2, # starting bin size
     "maximum_bin_val":22, # largest bin size
     "num_bins":64,         # num of bins to use
-    "batch_size":4,       # batch size for training, check if this is needed here or should be done directly in fit?
-    "shuffle":True,        # if wanna shuffle the data, this is not necessary
+    "batch_size":8,       # batch size for training, check if this is needed here or should be done directly in fit?
+    "shuffle":False,        # if wanna shuffle the data, this is not necessary
     "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
     "random_crop":True,         # if cropping should be random, this has to be implemented later
+    "val_random_crop":False,
     "flattening":True,
     #"take":8,
-    "epochs":30,
+    "epochs":3,
     "prefetch": False,
 
     "val_path": val_path,
@@ -101,8 +102,8 @@ def main():
         inp_channel = 41
 
     if archi_style == "one_group":
-        num_blocks = [72]
-        num_channels = [128]
+        num_blocks = [28]
+        num_channels = [64]
     elif archi_style == "two_group_prospr":
         num_blocks = [28, 192]
         num_channels = [128, 64]
@@ -285,6 +286,7 @@ def main():
                     plt.suptitle("Validation Data", fontsize=16)
                     plt.savefig(val_result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
                     plt.close("all")
+
 
 if __name__=="__main__":
     main()
