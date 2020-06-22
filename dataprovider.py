@@ -5,6 +5,7 @@ from utils import expand_dim, calc_pairwise_distances, load_npy_binary, output_t
 from utils import masked_categorical_cross_entropy, random_index, get_index
 from readData_from_TFRec import parse_tfexample, create_crop2, parse_val_tfexample, parse_test_tfexample
 import glob
+import copy
 import math
 import warnings
 from tensorflow.python.ops import array_ops
@@ -62,11 +63,12 @@ class DataGenerator(object):
             self.val_path = val_path
             self.validation_thinning_threshold = validation_thinning_threshold
             self.experimental_val_take = experimental_val_take
-
+            self.val_idx = []
+            
             self.val_shuffle = val_shuffle
             if self.val_shuffle is None:
                 self.val_shuffle = self.shuffle
-
+            self.val_shuffle = False
             self.validation_batch_size = validation_batch_size
             if self.validation_batch_size is None:
                 self.validation_batch_size = self.batch_size
@@ -87,12 +89,15 @@ class DataGenerator(object):
             self.training_validation_ratio = training_validation_ratio
             if self.training_validation_ratio is not None:
                 self.validation_datasize = int(self.training_validation_ratio * self.datasize)
+                self.val_mask = []
+                
                 original_validation_datasize = self.fetch_validation_datasize()
-                num_repeats = int(np.floor(self.validation_datasize / original_validation_datasize))
-                self.validation_raw_dataset = self.validation_raw_dataset.repeat(num_repeats)
+                num_val_repeats = int(np.floor(self.validation_datasize / original_validation_datasize))
+                self.validation_datasize = self.make_validation_idx_buffer(num_val_repeats, original_validation_datasize)
+                self.validation_raw_dataset = self.validation_raw_dataset.repeat(num_val_repeats)
             else:
                 self.validation_datasize = self.fetch_validation_datasize()
-
+            self.idx_iterator = np.arange(len(self.val_mask))
             if self.val_shuffle:
                 self.validation_raw_dataset = self.validation_raw_dataset.shuffle(self.val_shuffle_buffer_size)
 
@@ -104,9 +109,8 @@ class DataGenerator(object):
 
         # construct the generator and feeder
         self.datafeeder = None
-        self.construct_feeder()
+        # self.construct_feeder()
         self.iterator = None
-        # self.idx_track = []
         self.__iter__()
 
 
@@ -131,6 +135,14 @@ class DataGenerator(object):
         #     return output
         output = next(self.iterator)
         return output
+    
+    def test_val_size(self):
+        count = 0
+        for data in self.validation_raw_dataset:
+            temp = parse_val_tfexample(data, self.validation_thinning_threshold)
+            if all(ret is not None for ret in temp):
+                count += 1
+        return count
 
     def get_validation_dataset(self):
         if self.make_val_feeder:
@@ -146,7 +158,6 @@ class DataGenerator(object):
 
     def construct_feeder(self):
         def flat_map(features, distogram, mask):
-            # tf.print(array_ops.shape(mask))
             return (features, distogram, tf.reshape(mask, shape=(-1,)))
 
         self.datafeeder = tf.data.Dataset.from_generator(self.transformation_generator,
@@ -184,6 +195,9 @@ class DataGenerator(object):
             if self.experimental_val_take is not None:
                 self.validation_datafeeder = self.validation_datafeeder.take(self.experimental_val_take)
             self.validation_datafeeder = self.validation_datafeeder.repeat(self.epochs)
+            if self.training_validation_ratio is not None:
+                self.idx_iterator = np.tile(self.idx_iterator, self.epochs)
+                print("size of idx_iterator = {}".format(self.idx_iterator.shape))
             if self.val_prefetch:
                 self.validation_datafeeder = self.validation_datafeeder.prefetch(tf.data.experimental.AUTOTUNE)
 
@@ -192,7 +206,54 @@ class DataGenerator(object):
         for _ in self.raw_dataset:
             count +=1
         return count
-
+    
+    def pop_idx(self):
+        item, self.idx_iterator = self.idx_iterator[0], self.idx_iterator[1:]
+        return int(item)
+        
+    def make_validation_idx_buffer(self, repeats, raw_data_size):
+        # number of times to repeat the data
+        big_data_size = 0
+        for c in range(repeats):
+            protein_count = 0
+            # iterate over raw data of size 96
+            tmp_dataset = self.validation_raw_dataset
+            for i, data in enumerate(tmp_dataset):
+                primary, _, _, _ = parse_val_tfexample(data, self.validation_thinning_threshold)
+                if primary is not None:
+                    # if the length is less than and equal to crop size only add it once else ignore it
+                    if primary.shape[0]<=self.crop_size:
+                        # these will be skipped
+                        if c > 0:
+                            self.val_mask.append(False)
+                            self.val_idx.append([None,None])
+                        else:
+                            self.val_idx.append([0,0])
+                            self.val_mask.append(True)
+                    else:
+                        if self.val_random_crop:
+                            x = np.random.randint(0, primary.shape[0] - self.crop_size)
+                            y = np.random.randint(0, primary.shape[0] - self.crop_size)
+                            if c > 0:
+                                retry = True
+                                while retry:
+                                    if [x,y] in self.val_idx[raw_data_size+i::big_data_size]:
+                                        x = np.random.randint(0, primary.shape[0] - self.crop_size)
+                                        y = np.random.randint(0, primary.shape[0] - self.crop_size)
+                                    else:
+                                        retry = False
+                                self.val_idx.append([x,y])
+                                self.val_mask.append(True)
+                            else:
+                                big_data_size += 1
+                                self.val_idx.append([x,y])
+                                self.val_mask.append(True)
+                        else:
+                            self.val_idx.append([0,0])
+                            self.val_mask.append(True)
+                    protein_count += 1 
+        return self.val_mask.count(True)
+    
     def fetch_validation_datasize(self):
         count = 0
         for data in self.validation_raw_dataset:
@@ -206,7 +267,6 @@ class DataGenerator(object):
     def transformation_generator(self):
         for data in self.raw_dataset:
             primary, evolutionary, tertiary, ter_mask = parse_tfexample(data)
-            # print(primary.shape)
             transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
                                                     features=self.features,
                                                     crop_size=self.crop_size,
@@ -214,42 +274,52 @@ class DataGenerator(object):
                                                     minimum_bin_val=self.minimum_bin_val,
                                                     maximum_bin_val=self.maximum_bin_val,
                                                     num_bins=self.num_bins,
-                                                    random_crop=self.random_crop)
-            # self.idx_track.append(idx)
-            # for sample in transformed_batch:
+                                                    random_crop=self.random_crop,
+                                                    transformation_type="training")
+
             yield transformed_batch # has values (primary, tertiary, tertiary mask)
 
     def val_transformation_generator(self):
         for data in self.validation_raw_dataset:
             primary, evolutionary, tertiary, ter_mask = parse_val_tfexample(data, self.validation_thinning_threshold)
             if all(ret is not None for ret in [primary, evolutionary, tertiary, ter_mask]):
-                transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
-                                                                    features=self.features,
-                                                                    crop_size=self.crop_size,
-                                                                    padding_value=self.padding_value,
-                                                                    minimum_bin_val=self.minimum_bin_val,
-                                                                    maximum_bin_val=self.maximum_bin_val,
-                                                                    num_bins=self.num_bins,
-                                                                    random_crop=self.val_random_crop)
-
-                yield transformed_batch
+                c = self.pop_idx()
+                if self.val_mask[c]:
+                    transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
+                                                                        features=self.features,
+                                                                        crop_size=self.crop_size,
+                                                                        padding_value=self.padding_value,
+                                                                        minimum_bin_val=self.minimum_bin_val,
+                                                                        maximum_bin_val=self.maximum_bin_val,
+                                                                        num_bins=self.num_bins,
+                                                                        random_crop=self.val_random_crop,
+                                                                        transformation_type="validation",
+                                                                        arr_idx = c,
+                                                                        val_idx_array = self.val_idx)
+                    yield transformed_batch
+                else:
+                    continue
             else:
                 continue
 
     @staticmethod
     def generator_transform(primary, evolutionary, tertiary, tertiary_mask, features, crop_size, random_crop=True,
-                            padding_value=-1, minimum_bin_val=2, maximum_bin_val=22, num_bins=64):
+                            padding_value=-1, minimum_bin_val=2, maximum_bin_val=22, num_bins=64, transformation_type="training", arr_idx=None, val_idx_array=None):
 
         # correcting the datatype to avoid errors
         padding_value = float(padding_value)
         minimum_bin_val = float(minimum_bin_val)
         maximum_bin_val = float(maximum_bin_val)
         num_bins = int(num_bins)
-
-        if random_crop:   #this is the case for training data
-            index = random_index(primary, crop_size)
-        else:             #this is the case for validation data
-            index = get_index(primary, crop_size)
+        if transformation_type=="training":
+            if random_crop:   #this is the case for training data
+                index = random_index(primary, crop_size)
+            else:             #this is the case for validation data
+                index = [0,0]
+        elif transformation_type=="validation":
+            if arr_idx is None:
+                raise ValueError("Index to the validation array cannot be None!")
+            index = val_idx_array[arr_idx]
 
         dist_map = calc_pairwise_distances(tertiary)
         padding_size = math.ceil(primary.shape[0]/crop_size)*crop_size - primary.shape[0]
@@ -261,25 +331,91 @@ class DataGenerator(object):
 
 # Used for minor testing of data provider
 if __name__=="__main__":
-    # path = glob.glob("../proteinnet/data/casp7/training/100/*")
-    # params = {
-    # "crop_size":64, # this is the LxL
-    # "datasize":None,
-    # "features":"primary", # this will decide the number of channel, with primary 20, secondary 20+something
-    # "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
-    # "minimum_bin_val":2, # starting bin size
-    # "maximum_bin_val":22, # largest bin size
-    # "num_bins":64,         # num of bins to use
-    # "batch_size":2,       # batch size for training, check if this is needed here or should be done directly in fit?
-    # "shuffle":False,        # if wanna shuffle the data, this is not necessary
-    # "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    # "random_crop":True,         # if cropping should be random, this has to be implemented later
-    # "flattening":True,
-    # "take": 6,
-    # "epochs":2,
-    # "prefetch": False
-    # }
+    path = glob.glob("../proteinnet/data/casp7/training/100/*")
+    val_path = glob.glob("../proteinnet/data/casp7/validation/*")
+    params = {
+    "crop_size":64, # this is the LxL
+    "datasize":None,
+    "features":"primary", # this will decide the number of channel, with primary 20, pri-evo 41
+    "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
+    "minimum_bin_val":2, # starting bin size
+    "maximum_bin_val":22, # largest bin size
+    "num_bins":64,         # num of bins to use
+    "batch_size":8,       # batch size for training, check if this is needed here or should be done directly in fit?
+    "shuffle":False,        # if wanna shuffle the data, this is not necessary
+    "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
+    "random_crop":True,         # if cropping should be random, this has to be implemented later
+    "val_random_crop":True,
+    "flattening":True,
+    # "take":8,
+    "epochs":3,
+    "prefetch": False,
+
+    "val_path": val_path,
+    "validation_thinning_threshold": 50,
+    "training_validation_ratio": 0.2,
+    # "experimental_val_take": 2
+    }
     # dataprovider = DataGenerator(path, **params)
+    # validation_data = dataprovider.get_validation_dataset()
+    # validation_steps = dataprovider.get_validation_length()
+    # print("validation set size = {}".format(validation_steps))
+    # stored_data = []
+    # start = 30
+    # end = 35
+    # num_of_elems = 0
+    
+    # for i in range(params["epochs"]):
+    #     count = -1
+    #     for idx, (x, y, mask) in enumerate(validation_data):
+    #         print("batch {}!".format(idx))
+    #         if i<1 and idx >= start and idx < end:
+    #             print("Storing!!")
+    #             stored_data.append(x)
+    #         elif i>0 and idx >= start and idx < end:
+    #             count += 1
+    #             print("Comparing!!")
+    #             if np.array_equal(x.numpy(), stored_data[count]):
+    #                 print("Success for array = {}, for epoch ={}".format(count, i))
+    #         else:
+    #             continue
+    #     num_of_elems = len(stored_data)
+    dataprovider = DataGenerator(path, **params)
+    validation_data = dataprovider.get_validation_dataset()
+    validation_steps = dataprovider.get_validation_length()
+    print("validation set size = {}".format(validation_steps))
+    stored_data = []
+    start = 5
+    end = 10
+    num_of_elems = 0
+    for idx, (x, y, mask) in enumerate(validation_data):
+        print("batch {}!".format(idx))
+        if idx >= start and idx < end:
+            print("Storing!!")
+            stored_data.append(x.numpy())
+        elif idx > end:
+            continue
+    print("remaining element in the index array = {}".format(dataprovider.idx_iterator.shape[0]))
+    del dataprovider
+    del validation_data
+    
+    dataprovider = DataGenerator(path, **params)
+    validation_data = dataprovider.get_validation_dataset()
+    validation_steps = dataprovider.get_validation_length()
+    print("validation set size = {}".format(validation_steps))
+    num_of_elems = 0
+    count = -1
+    for idx, (x, y, mask) in enumerate(validation_data):
+        print("batch {}!".format(idx))
+        if idx >= start and idx < end:
+            count += 1
+            print("Testing!! \n x.numpy().shape = {}, stored_data[count].shape = {}".format(x.numpy().shape, stored_data[count].shape))
+            if np.array_equal(x.numpy(), stored_data[count]):
+                print("Success for array = {}".format(count))
+        elif idx > end:
+            break
+                    
+    
     # num_data_points = 0
     # print(len(dataprovider))
     # tensors = []
@@ -314,23 +450,23 @@ if __name__=="__main__":
     #     # print(reshaped_test)
     #     num_data_points += 1
     # print(num_data_points)
-    path = glob.glob("../../proteinnet/data/casp7/testing/*")
-    print("Test set path = {}".format(path))
-    raw_dataset = tf.data.TFRecordDataset(path)
-    count_fm = 0
-    count_tbm = 0
-    count_tbm_hard = 0
-    for data in raw_dataset:
-        primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'FM')
-        if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
-            print(primary.shape)
-            count_fm += 1
-        primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'TBM')
-        if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
-            print(primary.shape)
-            count_tbm += 1
-        primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'TBM-hard')
-        if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
-            print(primary.shape)
-            count_tbm_hard += 1
-    print("Number of FM Models = {}, TBM models = {}, TBM-Hard model = {}".format(count_fm, count_tbm, count_tbm_hard))
+    # path = glob.glob("../../proteinnet/data/casp7/testing/*")
+    # print("Test set path = {}".format(path))
+    # raw_dataset = tf.data.TFRecordDataset(path)
+    # count_fm = 0
+    # count_tbm = 0
+    # count_tbm_hard = 0
+    # for data in raw_dataset:
+    #     primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'FM')
+    #     if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
+    #         print(primary.shape)
+    #         count_fm += 1
+    #     primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'TBM')
+    #     if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
+    #         print(primary.shape)
+    #         count_tbm += 1
+    #     primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'TBM-hard')
+    #     if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
+    #         print(primary.shape)
+    #         count_tbm_hard += 1
+    # print("Number of FM Models = {}, TBM models = {}, TBM-Hard model = {}".format(count_fm, count_tbm, count_tbm_hard))
