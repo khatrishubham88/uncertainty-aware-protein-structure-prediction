@@ -21,6 +21,9 @@
 # UQ Paper
 * [MC-Dropout, Gaussian dropout interpreted as performing Bayesian inference](https://arxiv.org/abs/1506.02142)
 * [Temperature Scaling](https://arxiv.org/pdf/1706.04599.pdf)
+* [Deep ensembles](https://arxiv.org/abs/1612.01474) 
+* [https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift](Deep ensembles (https://arxiv.org/abs/1612.01474) 
+https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift ) 
 
 # Features 
 * Sequence
