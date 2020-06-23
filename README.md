@@ -18,6 +18,10 @@
 * [Open Protein](https://github.com/biolib/openprotein)
 * [AlphaFold Pytorch (cropping here)](https://github.com/Urinx/alphafold_pytorch)
 
+# UQ Paper
+* [MC-Dropout, Gaussian dropout interpreted as performing Bayesian inference](https://arxiv.org/abs/1506.02142)
+* [Temperature Scaling](https://arxiv.org/pdf/1706.04599.pdf)
+
 # Features 
 * Sequence
 * [PSSM](https://www.ncbi.nlm.nih.gov/Class/Structure/pssm/pssm_viewer.cgi)
