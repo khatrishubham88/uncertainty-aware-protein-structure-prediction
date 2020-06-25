@@ -19,22 +19,8 @@ sys.setrecursionlimit(100000)
 # tf.autograph.set_verbosity(0)
 
 def main():
-    """
-    paths = []
-    for i in range(1, 136):
-        paths.append('/storage/remote/atcremers45/s0237/casp7/training/100/' + str(i))
-    X, mask, y = gather_data_seq_under_limit(paths, 64)
-    """
-    """
-
     train_path = glob.glob("P:/casp7/casp7/training/100/*")
     val_path = glob.glob("P:/casp7/casp7/validation/1")
-    train_plot = False
-    validation_plot = False
-
-    """
-    train_path = glob.glob("/home/ghalia/Documents/LabCourse/casp7/training/100/*")
-    val_path = glob.glob("/home/ghalia/Documents/LabCourse/casp7/validation/*")
     train_plot = False
     validation_plot = True
 
@@ -116,10 +102,8 @@ def main():
         inp_channel = 41
 
     if archi_style == "one_group":
-
         num_blocks = [28]
         num_channels = [64]
-
     elif archi_style == "two_group_prospr":
         num_blocks = [28, 192]
         num_channels = [128, 64]
@@ -133,10 +117,10 @@ def main():
                 dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
                 dropout_rate=0.15, reg_strength=1e-4)
     model = nn.model()
-
+    """
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.006),
                   loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
-
+    """
     tf.print(model.summary())
 
 
@@ -146,7 +130,7 @@ def main():
     except:
         num_of_steps = len(dataprovider)
 
-
+    """
     # to find learning rate patience with minimum 3 and then epoch dependent
     lr_patience = 2
 
@@ -214,8 +198,9 @@ def main():
     plt.savefig("learning_rate.png")
     plt.close("all")
     params["epochs"] = 1
+    """
 
-
+    model.load_weights("P:/proteinfolding_alphafold/model_weight_identity_randcrop/bs_4_inp_20_72x128/custom_model_weights_dropoutrate_0.15_lr_0.0003_minlr_3e-07_factorred_0.5").expect_partial()
 
     dataprovider = DataGenerator(train_path, **params)
     if params.get("val_path", None) is not None:
@@ -301,6 +286,7 @@ def main():
                     plt.suptitle("Validation Data", fontsize=16)
                     plt.savefig(val_result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
                     plt.close("all")
+
 
 if __name__=="__main__":
     main()

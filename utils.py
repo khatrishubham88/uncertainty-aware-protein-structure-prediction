@@ -71,7 +71,10 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
     distance_maps = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
 
     bins = np.linspace(min_angstrom, max_angstrom, num_bins)
-    values = np.argmax(output, axis=3)
+    if len(output.shape) == 4:
+        values = np.argmax(output, axis=3)
+    else:
+        values = np.argmax(output, axis=2)
     for batch in range(distance_maps.shape[0]):
         distance_maps[batch] = bins[values[batch]]
 
@@ -227,7 +230,7 @@ def contact_map_from_distancemap(distance_maps):
   return contact_maps
 
 
-def accuracy_metric(y_true, y_predict):
+def accuracy_metric(y_true, y_predict, mask):
      """
      input:
         y_predict: predicted distograms of shape [nr_samples, 64, 64, 64]
@@ -239,13 +242,17 @@ def accuracy_metric(y_true, y_predict):
      contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
      contact_maps_true = contact_map_from_distancemap(distance_maps_true)
      total_accu = 0
+     sample_acc = []
      for sample in range(contact_maps_true.shape[0]):
-         sample_accu = accuracy_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten())
-         total_accu = total_accu + sample_accu
-     return (total_accu/contact_maps_true.shape[0])
+         sample_accuracy = accuracy_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten(),
+                                          normalize=False,
+                                          sample_weight=mask[sample].flatten()) / np.count_nonzero(mask[sample])
+         sample_acc.append(sample_accuracy)
+         total_accu = total_accu + sample_accuracy
+     return sample_acc, total_accu / contact_maps_true.shape[0]
 
 
-def precision_metric(y_true, y_predict):
+def precision_metric(y_true, y_predict, mask):
      """
      input:
         y_predict: predicted distograms of shape [nr_samples, 64, 64, 64]
@@ -257,10 +264,44 @@ def precision_metric(y_true, y_predict):
      contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
      contact_maps_true = contact_map_from_distancemap(distance_maps_true)
      total_prec = 0
+     precisions = []
      for sample in range(contact_maps_true.shape[0]):
-         sample_prec = precision_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten())
+         true_pos = (((contact_maps_true[sample].flatten() == contact_maps_predicted[sample].flatten())
+                      & (contact_maps_true[sample].flatten() == 1)
+                      & (contact_maps_predicted[sample].flatten() == 1)) * mask[sample].flatten()).sum()
+         false_pos = (((contact_maps_true[sample].flatten() != contact_maps_predicted[sample].flatten())
+                      & (contact_maps_true[sample].flatten() == 0)
+                      & (contact_maps_predicted[sample].flatten() == 1)) * mask[sample].flatten()).sum()
+         sample_prec = true_pos / (true_pos + false_pos)
+         precisions.append(sample_prec)
          total_prec = total_prec + sample_prec
-     return (total_prec/contact_maps_true.shape[0])
+
+     return precisions, total_prec / contact_maps_true.shape[0]
+
+
+def recall_metric(y_true, y_predict, mask):
+    distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
+    distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
+    contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
+    contact_maps_true = contact_map_from_distancemap(distance_maps_true)
+    total_rec = 0
+    recalls = []
+    for sample in range(contact_maps_true.shape[0]):
+        true_pos = (((contact_maps_true[sample].flatten() == contact_maps_predicted[sample].flatten())
+                     & (contact_maps_true[sample].flatten() == 1)
+                     & (contact_maps_predicted[sample].flatten() == 1)) * mask[sample].flatten()).sum()
+        false_neg = (((contact_maps_true[sample].flatten() != contact_maps_predicted[sample].flatten())
+                      & (contact_maps_true[sample].flatten() == 1)
+                      & (contact_maps_predicted[sample].flatten() == 0)) * mask[sample].flatten()).sum()
+        sample_rec = true_pos / (true_pos + false_neg)
+        recalls.append(sample_rec)
+        total_rec = total_rec + sample_rec
+
+    return recalls, total_rec / contact_maps_true.shape[0]
+
+
+def f_beta_score(precision, recall, beta=1):
+    return ((1 + beta**2) * precision * recall) / (beta**2 * precision + recall)
 
 
 def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold):
