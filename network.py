@@ -3,17 +3,13 @@ from tensorflow.keras.layers import Activation, Add, BatchNormalization, Conv2D,
 from trainable_model import CustomModel
 from tensorflow.keras.regularizers import l2
 
-"""
-To-Do List:
-1. Test the model output on data from Kaggle.
-2. Weight initialization.
-3. Look into position-specific bias mentioned in DeepMind paper.
-"""
-
 
 class ResNet():
+    """Two-dimensional dilated convolutional neural network with variable number of residual
+    block groups. Each residual block group consists of four ResNet blocks.
+    """
     def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
-                 non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4):
+                 non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4, logits=True):
         super(ResNet, self).__init__()
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
@@ -28,8 +24,14 @@ class ResNet():
         self.non_linearity = non_linearity
         self.dropout_rate = dropout_rate
         self.reg_strength = reg_strength
+        self.logits = logits
 
     def model(self):
+        """Function that creates the network based on initialized
+        parameters.
+          Returns:
+            Tensorflow Keras model.
+        """
         # Create the input layer
         inputs = x = Input(shape=(self.crop_size, self.crop_size, self.input_channels), batch_size=self.batch_size,
                            name='input_crop')
@@ -69,13 +71,23 @@ class ResNet():
                     elif self.num_channels[idx] < self.output_channels:
                         x = self.make_layer()[0](x)
 
-        out = Softmax(axis=3, name='softmax_layer')(x)
+        if self.logits:
+            out = Softmax(axis=3, name='softmax_layer')(x)
+        else:
+            out = x
         distance_pred_resnet = CustomModel(inputs, out, name='AlphaFold_Distance_Prediction_Model')
 
         return distance_pred_resnet
-    
 
     def make_layer(self, first='False'):
+        """Generates a block of layers consisting of convolutional or transposed convolutional layers
+        and BatchNorm layers.
+          Args:
+            first: Boolean to indicate whether this block of layers is before and or after the ResNet
+                   blocks.
+          Returns:
+            List containing layer objects making up the layer block.
+        """
         layers = []
         if first == 'True':
             if self.input_channels > self.num_channels[0]:
@@ -100,6 +112,21 @@ class ResNet():
         return layers
 
     def resnet_block(self, num_filters, stride, atou_rate, set_block, block_num, kernel_size=3):
+        """Generates a ResNet block.
+          Args:
+            num_filters: Number of channels in the input to this ResNet block.
+            stride:      An integer or tuple/list of 3 integers, specifying the strides of the convolution
+                         along each spatial dimension.
+            atou_rate:   An integer or tuple/list of 3 integers, specifying the dilation rate to use for dilated
+                         convolution. Can be a single integer to specify the same value for all spatial dimensions.
+            set_block:   Integer indicating which set of ResNet blocks this ResNet block belongs to.
+            block_num:   Integer indicating which position this ResNet block holds in its set of ResNet blockss.
+            kernel_size: An integer or tuple/list of 3 integers, specifying the depth, height and width of the
+                         3D convolution window. Can be a single integer to specify the same value for all spatial
+                         dimensions.
+          Returns:
+            List containing the layer objects making up the ResNet block.
+        """
         layers = []
 
         # Project down

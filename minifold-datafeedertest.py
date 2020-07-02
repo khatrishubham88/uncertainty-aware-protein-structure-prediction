@@ -20,7 +20,7 @@ from utils import *
 def main():
     train_path = glob.glob("P:/casp7/casp7/training/100/*")
     val_path = glob.glob("P:/casp7/casp7/validation/1")
-    train_plot = False
+    train_plot = True
     validation_plot = True
 
     params = {
@@ -69,11 +69,12 @@ def main():
         val_result_dir = result_dir + "/val_data"
         if os.path.isdir(val_result_dir) is False:
             os.mkdir(val_result_dir)
+
     # instantiate data provider
     dataprovider = DataGenerator(train_path, **params)
 
     print("Total Dataset size = {}".format(len(dataprovider)))
-
+    
     if params.get("val_path", None) is not None:
         validation_data = dataprovider.get_validation_dataset()
         validation_steps = dataprovider.get_validation_length()
@@ -92,9 +93,9 @@ def main():
     strategy = tf.distribute.MirroredStrategy()
     print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
     # with strategy.scope():
-    if params["features"]=="primary":
+    if params["features"] == "primary":
         inp_channel = 20
-    elif params["features"]=="pri-evo":
+    elif params["features"] == "pri-evo":
         inp_channel = 41
 
     if archi_style == "one_group":
@@ -172,7 +173,7 @@ def main():
 
     model.save_weights(model_dir + "/custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
     model.save(model_dir + '/' + archi_style)
-    """
+
     history = {'loss': [0.16137753427028656, 0.1508493274450302, 0.1491297036409378, 0.14445514976978302,
                         0.14317423105239868, 0.14306320250034332, 0.14252369105815887, 0.14263318479061127,
                         0.1409928947687149, 0.14060086011886597, 0.1409199982881546, 0.14049330353736877,
@@ -199,18 +200,20 @@ def main():
     plt.title("Learning Rate")
     plt.xlabel("Epochs")
     plt.ylabel("Learning Rate")
-    plt.plot( x_range, history["lr"])
+    plt.plot(x_range, history["lr"])
     plt.savefig("learning_rate.png")
     plt.close("all")
+    """
 
     model.load_weights("P:/proteinfolding_alphafold/minifold_trained/custom_model_weights_epochs_30_batch_size_16").expect_partial()
-    dataprovider = DataGenerator(train_path, **params)
-    if params.get("val_path", None) is not None:
+    dataprovider = DataGenerator(val_path, **params)
+    if params.get("train_path", None) is not None:
         validation_data = dataprovider.get_validation_dataset()
         if params.get("experimental_val_take", None) is not None:
             validation_steps = params.get("experimental_val_take", None)
         else:
             validation_steps = dataprovider.get_validation_length()
+    """
     if train_plot:
         for j in range(num_of_steps):
             X, y, mask = next(dataprovider)
@@ -289,7 +292,7 @@ def main():
                 plt.suptitle("Acc: " + str(round(accuracies[0] * 100, 2)) + "%, Prec: " + str(
                     round(precisions[0] * 100, 2)) + "%, Rec: " + str(
                     round(recalls[0] * 100, 2)) + "%, F1-Score: " + str(
-                    round(f_beta_score(precisions[0], accuracies[0], beta=1) * 100, 2)) + "%",
+                    round(f_beta_score(precisions[0], recalls[0], beta=1) * 100, 2)) + "%",
                              fontsize=12)
                 plt.savefig(val_result_dir+"/result.png")
                 plt.close("all")
@@ -309,11 +312,12 @@ def main():
                     plt.suptitle("Acc: " + str(round(accuracies[i] * 100, 2)) + "%, Prec: " + str(
                         round(precisions[i] * 100, 2)) + "%, Rec: " + str(
                         round(recalls[i] * 100, 2)) + "%, F1-Score: " + str(
-                        round(f_beta_score(precisions[i], accuracies[i], beta=1) * 100, 2)) + "%",
+                        round(f_beta_score(precisions[i], recalls[i], beta=1) * 100, 2)) + "%",
                                  fontsize=12)
                     plt.imshow(contact_maps_pred[i], cmap='viridis_r')
                     plt.savefig(val_result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
                     plt.close("all")
+    """
 
 
 if __name__=="__main__":

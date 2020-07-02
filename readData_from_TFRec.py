@@ -8,27 +8,23 @@ from tqdm import tqdm
 from utils import to_distogram
 from utils import pad_feature2, calc_pairwise_distances, output_to_distancemaps, contact_map_from_distancemap, accuracy_metric, precision_metric
 
-
 NUM_AAS = 20
 NUM_DIMENSIONS = 3
 NUM_EVO_ENTRIES = 21
 
 
 def masking_matrix(input_mask):
-    """
-    Constructs a masking matrix to zero out pairwise distances due to missing residues or padding.
-
-    Args:
+    """Constructs a masking matrix to zero out pairwise distances due to missing residues or padding.
+      Args:
         input_mask: 0/1 vector indicating whether a position should be masked (0) or not (1)
-    Returns:
+      Returns:
         A square matrix with all 1s except for rows and cols whose corresponding indices in mask are set to 0.
         [SEQ_LENGTH, SEQ_LENGTH]
     """
-
     mask = tf.convert_to_tensor(input_mask, name='mask')
 
     #print(tf.size(mask)) #--> Tensor("Size_2:0", shape=(), dtype=int32)
-    mask = tf.expand_dims(mask, axis= 0) #--> this operation inserts a dimension of size 1 at the dimension index axis
+    mask = tf.expand_dims(mask, axis= 0)    # this operation inserts a dimension of size 1 at the dimension index axis
     #print(tf.size(mask)) #--> Tensor("Size_3:0", shape=(), dtype=int32)
     base = tf.ones([tf.size(mask), tf.size(mask)])
 
@@ -147,10 +143,10 @@ def parse_test_tfexample(serialized_input, category):
 
 
 def parse_dataset(file_paths):
-    """
-    This function iterates over all input files
-    and extract record information from each single file
-    Use Yield for optimization purpose causes reading when needed
+    """This function iterates over all input training files and extracts record information from each single file.
+    Use Yield for optimization purpose causes reading when needed.
+      Args:
+        file_paths: List containing all the paths to training files.
     """
     raw_dataset = tf.data.TFRecordDataset(file_paths)
     for data in raw_dataset:
@@ -159,12 +155,11 @@ def parse_dataset(file_paths):
 
 
 def parse_val_dataset(file_paths, min_thinning):
+    """This function iterates over all input validation files and extracts record information from each single file.
+    Use Yield for optimization purpose causes reading when needed.
+      Args:
+        file_paths: List containing all the paths to validation files.
     """
-    This function iterates over all input files
-    and extract record information from each single file
-    Use Yield for optimization purpose causes reading when needed
-    """
-
     raw_dataset = tf.data.TFRecordDataset(file_paths)
     for data in raw_dataset:
         parsed_data = parse_val_tfexample(data, min_thinning)
@@ -172,12 +167,12 @@ def parse_val_dataset(file_paths, min_thinning):
 
 
 def parse_test_dataset(file_paths, category):
+    """This function iterates over all input test files and extracts record information from each single file.
+    Use Yield for optimization purpose causes reading when needed.
+      Args:
+        file_paths: List containing all the paths to test files.
+        category:   Specifies which category (FM, TBM or TBM-hard) we want to use for testing.
     """
-    This function iterates over all input files
-    and extract record information from each single file
-    Use Yield for optimization purpose causes reading when needed
-    """
-
     raw_dataset = tf.data.TFRecordDataset(file_paths)
     for data in raw_dataset:
         parsed_data = parse_test_tfexample(data, category)
@@ -185,29 +180,37 @@ def parse_test_dataset(file_paths, category):
 
 
 def widen_seq(seq):
-    """
+    """Converts a seq into a one-hot tensor (not LxN but LxLxN).
     _aa_dict = {'A': '0', 'C': '1', 'D': '2', 'E': '3', 'F': '4', 'G': '5', 'H': '6', 'I': '7',
     'K': '8', 'L': '9', 'M': '10', 'N': '11', 'P': '12', 'Q': '13', 'R': '14', 'S': '15', 'T': '16', 'V': '17', 'W': '18', 'Y': '19'}
-    Converts a seq into a one-hot tensor. Not LxN but LxLxN
+      Args:
+        seq: Protein sequence.
+      Returns:
+        Tensor containing widened one-hot encoded sequence information of a protein.
     """
     L = seq.shape[0]
-    key = np.arange(start=0,stop=NUM_AAS,step=1)
-    wide_tensor = np.zeros(shape=(L,L,NUM_AAS))
+    key = np.arange(start=0, stop=NUM_AAS, step=1)
+    wide_tensor = np.zeros(shape=(L, L, NUM_AAS))
     proto_seq = tf.make_tensor_proto(seq)
     numpy_seq = tf.make_ndarray(proto_seq)
     enc = OneHotEncoder(handle_unknown='error')
-    enc.fit(key.reshape(-1,1))
-    encoding = enc.transform(key.reshape(-1,1)).toarray()
+    enc.fit(key.reshape(-1, 1))
+    encoding = enc.transform(key.reshape(-1, 1)).toarray()
     for i in range(NUM_AAS):
-        pos = np.argwhere(numpy_seq==i)
-        for j,k in itertools.product(pos, repeat=2):
-            wide_tensor[j,k,:] = encoding[i,:]
+        pos = np.argwhere(numpy_seq == i)
+        for j, k in itertools.product(pos, repeat=2):
+            wide_tensor[j, k, :] = encoding[i, :]
+
     return tf.convert_to_tensor(wide_tensor, dtype=tf.float32)
 
 
 def widen_pssm(pssm):
     """
-    Converts the LxL pssm matrix into LxLxN shape
+    Widens the LxL PSSM matrix into LxLxN shape.
+      Args:
+        pssm: PSSM matrix.
+      Returns:
+        Tensor containing widened one-hot encoded information of a PSSM matrix.
     """
     L = pssm.shape[0]
     wide_tensor = np.zeros(shape=(L, L, NUM_EVO_ENTRIES))
@@ -215,19 +218,33 @@ def widen_pssm(pssm):
     npy_pssm = tf.make_ndarray(proto_pssm)
     for i in range(npy_pssm.shape[0]):
         for j in range(npy_pssm.shape[0]):
-            new_feature_vec = np.multiply(npy_pssm[i],npy_pssm[j])/2
-            wide_tensor[i,j,:] = new_feature_vec
+            new_feature_vec = np.multiply(npy_pssm[i], npy_pssm[j])/2
+            wide_tensor[i, j, :] = new_feature_vec
     return tf.convert_to_tensor(wide_tensor, dtype=tf.float32)
 
 
-def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index, crop_size, padding_value, padding_size,
-                          minimum_bin_val, maximum_bin_val, num_bins):
+def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index, crop_size, padding_value,
+                 padding_size, minimum_bin_val, maximum_bin_val, num_bins):
+    """If the sequence length is bigger than the crop_size this function crops a random (crop_size x crop_size) window
+    from the calculated features. Otherwise, it pads the features to the crop_size and returns them.
+      Args:
+        primary:            Protein sequence.
+        evolutionary:       Evolutionary information of the protein.
+        dist_map:           Inter-residual distances in Angstrom.
+        tertiary_mask:      Mask matrix.
+        features:           If feature is equal to 'primary', we do not use evolutionary information to construct
+                            the input to the network.
+        index:              List containing two random indices used for cropping.
+        crop_size:          Integer determining how many residuals are used in each crop.
+        padding_value:      Integer that is used for padding.
+        padding_size:       Integer determining the maximum number of paddings needed along a dimension.
+        minimum_bin_val:    Minimum value of inter-residual distances used for discretization in Angstrom.
+        maximum_bin_val:    Maximum value of inter-residual distances used for discretization in Angstrom.
+        num_bins:           Number of bins used for the discretization of the inter-residual distances.
+      Returns:
+        Tuple consisting of crops of primary input, ground truth and mask.
     """
-    If the sequence length is > crop_size this function
-    crops a random (crop_size x crop_size) window from the calculated features
-    Otherwise, it padds the features to the crop_size and returns them
-    """
-    if(features=='primary'):
+    if(features == 'primary'):
         if primary.shape[0] >= crop_size:
             primary = widen_seq(primary)
             primary_crop = primary[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size, :]
@@ -264,7 +281,6 @@ def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index
                 distogram = to_distogram(dist_map, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
                 tertiary_mask = pad_feature2(tertiary_mask, crop_size, 0, padding_size, 2)
                 return (pri_evol, distogram, tertiary_mask)
-
 
 
 if __name__ == '__main__':

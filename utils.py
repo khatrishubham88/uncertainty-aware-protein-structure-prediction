@@ -2,11 +2,10 @@ import math
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
-# from readData_from_TFRec import widen_seq
+
 from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_crossentropy
 from tensorflow.python.keras.utils import losses_utils
 from sklearn.metrics import accuracy_score
-from sklearn.metrics import precision_score
 
 
 class CategoricalCrossentropyForDistributed(LossFunctionWrapper):
@@ -29,12 +28,20 @@ class CategoricalCrossentropyForDistributed(LossFunctionWrapper):
         label_smoothing=label_smoothing,
         global_batch_size=global_batch_size)
 
+
 def categorical_crossentropy_with_wrapper(y_true, y_pred, global_batch_size, from_logits=False, label_smoothing=0):
     loss = categorical_crossentropy(y_true=y_true, y_pred=y_pred, from_logits=from_logits, label_smoothing=label_smoothing)
     # weight by global batch size
     return loss/global_batch_size
 
+
 def load_npy_binary(path):
+    """Loads in a Numpy binary.
+      Args:
+        path: Path to Numpy binary.
+      Returns:
+        A Numpy array.
+      """
     return np.load(path)
 
 
@@ -62,11 +69,26 @@ def masked_categorical_cross_entropy_test():
     return loss
 
 
-def expand_dim(low_dim_tensor):
-    return K.stack(low_dim_tensor, axis=0)
+def expand_dim(low_dim_tensor, axis=0):
+    """Stacks a list of rank `R` tensors into a rank `R+1` tensor.
+      Args:
+        low_dim_tensor: List of tensors.
+      Returns:
+        A tensor.
+      """
+    return K.stack(low_dim_tensor, axis=axis)
 
 
 def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
+    """Given a batch of outputs, creates the distance maps ready for plotting.
+      Args:
+        output: Batch of predictions by the network either as tensor or Numpy array.
+        min_angstrom: Lower boundary of distance range in Angstrom.
+        max_angstrom: Upper boundary of distance range in Angstrom.
+        num_bins: Number of bins for discretization of the distance range.
+      Returns:
+        A Numpy array with consisting of predicted distances for each residual pair in the crop.
+    """
     output = K.eval(output)
     distance_maps = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
 
@@ -79,7 +101,6 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
         distance_maps[batch] = bins[values[batch]]
 
     return distance_maps
-
 
 
 def pad_tensor(tensor, shape):
@@ -123,11 +144,17 @@ def pad_mask(tensor, shape):
 
 
 def calc_distance(aa1, aa2):
-    """Calculates the distance between two AA
-    using three different approaches:
-        1- distance between the N atoms of the two AA
-        2- distance between the C-alpha atoms of the two AA
-        3- distance between the C-prime atoms of the two AA
+    """Calculates the distance between two amino acids using
+    three different approaches:
+    1. Distance between the N atoms of the two amino acids.
+    2. Distance between the C-Alpha atoms of the two amino acids.
+    3. Distance between the C-Prime atoms of the two amino acids.
+      Args:
+        aa1: 3D Coordinates of atoms in first amino acid.
+        aa2: 3D Coordinates of atoms in second amino acid.
+      Returns:
+        Lists of pairwise distances between amino acids using N, C-Alpha
+        or C-Prime atoms for calculation.
     """
     aa1_N_pos = (aa1[0][0], aa1[0][1], aa1[0][2])
     aa2_N_pos = (aa2[0][0], aa2[0][1], aa2[0][2])
@@ -151,9 +178,13 @@ def calc_distance(aa1, aa2):
 
 
 def calc_calpha_distance(coord1, coord2):
-    """This function takes as input the two C-alpha corrdinates
-    of two AAs and returns the angstrom distance between them
-    input: coord1 [x, y, z], coord2 [x, y, z]
+    """This function calculates the distance between two amino acids in Angstrom
+    using the coordinates of the C-Alpha atoms for calculation.
+      Args:
+        coord1: 3D coordinates of first C-Alpha atom [x, y, z].
+        coord2: 3D coordinates of second C-Alpha atom [x, y, z].
+      Returns:
+        Distance between both C-Alpha atoms in Angstrom.
     """
     C_alpha_distance = math.sqrt(
         (coord2[0] - coord1[0]) ** 2 + (coord2[1] - coord1[1]) ** 2 + (coord2[2] - coord1[2]) ** 2)
@@ -162,11 +193,14 @@ def calc_calpha_distance(coord1, coord2):
 
 
 def calc_pairwise_distances(tertiary):
-    """Calculates the pairwise distances between
-    AAs of a protein and returns the distance map in angstrom.
-    input: tertiary is a tensor of shape (seq_len, 3)
+    """Calculates the pairwise distances between amino acids of a
+    protein and returns the distance map in Angstrom.
+      Args:
+        tertiary: Tensor containing position information of each amino
+                  acid in protein.
+      Returns:
+        Tensor containing pairwise distances between amino acids in protein.
     """
-
     tertiary_numpy = tertiary.numpy() / 100
     c_alpha_coord = []
     for index, coord in enumerate(tertiary_numpy):
@@ -187,11 +221,15 @@ def calc_pairwise_distances(tertiary):
 
 
 def to_distogram(distance_map, min_val, max_val, num_bins):
-    """Returns the distogram tensor LxLxnum_bins from the distance map LxL.
-    Input: distance_map: LxL distance matrx in angstrom
-           min: minimum value for the histogram in angstrom
-           max: maximum value for the histogram in angstrom
-           num_bins: integer number
+    """This function returns the distogram tensor LxLxNum_bins from
+    the distance map LxL.
+      Args:
+        distance_map: LxL distance matrix in Angstrom.
+        min: Minimum value for the histogram in Angstrom
+        max: Maximum value for the histogram in Angstrom
+        num_bins: Number of bins used for discretization of distance range.
+      Returns:
+        Numpy array containing corresponding distogram for given distance map.
     """
     assert min_val >= 0.0
     assert max_val > 0.0
@@ -205,9 +243,13 @@ def to_distogram(distance_map, min_val, max_val, num_bins):
 
 
 def random_index(primary, crop_size):
-    """
-    This function returns a random index to do the cropping,
-    index is within sequence lengh if seq_len > crop_size
+    """This function returns a random index to do the cropping,
+    index is within sequence length if seq_len is bigger than crop_size.
+      Args:
+        primary: Tensor containing information about protein sequence.
+        crop_size: Number of residual pairs in one crop.
+      Returns:
+        List with two indices (x and y dimensions) for random cropping.
     """
     index = []
     if primary.shape[0] <= crop_size:
@@ -219,25 +261,29 @@ def random_index(primary, crop_size):
     
 
 def contact_map_from_distancemap(distance_maps):
-  """if distance between 2 AA is smaller than 8 Angstrom set to contact
-  otherwise not in contact:
-  input: distance_maps of shape [nr_samples, 64, 64]
-  output: contact_maps of shape [nr_samples, 64, 64]
-  """
-  contact_maps = np.zeros(shape=(distance_maps.shape[0], distance_maps.shape[1], distance_maps.shape[2]))
-  for batch in range(distance_maps.shape[0]):
-      contact_maps[batch] = np.where(distance_maps[batch] > 8, 0, 1) # dist >8 yield 0 otherwise 1
-  return contact_maps
+    """If distance between two amino acids is smaller than 8 Angstrom, set to contact
+    otherwise not in contact:
+      Args:
+        distance_maps: Numpy array containing batch of distance maps.
+      Returns:
+        Numpy array containing batch of corresponding contact maps.
+    """
+    contact_maps = np.zeros(shape=(distance_maps.shape[0], distance_maps.shape[1], distance_maps.shape[2]))
+    for batch in range(distance_maps.shape[0]):
+        contact_maps[batch] = np.where(distance_maps[batch] > 8, 0, 1)  # Distance > 8 yield 0, otherwise 1
+    return contact_maps
 
 
-def accuracy_metric(y_true, y_predict, mask):
-     """
-     input:
-        y_predict: predicted distograms of shape [nr_samples, 64, 64, 64]
-        y_true: ground truth distograms of shape [nr_samples, 64, 64, 64]
-    output:accuracy using contact maps
-     """
-     distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
+def accuracy_metric(y_true, y_pred, mask):
+     """Computes the individual accuracies and mean accuracy for a batch of predictions.
+      Args:
+        y_true: Batch of ground truths.
+        y_pred: Batch of predictions.
+        mask: Batch of masks.
+      Returns:
+        List with accuracies for each prediction in batch and mean accuracy for batch of predictions.
+      """
+     distance_maps_predicted = output_to_distancemaps(y_pred, 2, 22, 64)
      distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
      contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
      contact_maps_true = contact_map_from_distancemap(distance_maps_true)
@@ -252,14 +298,16 @@ def accuracy_metric(y_true, y_predict, mask):
      return sample_acc, total_accu / contact_maps_true.shape[0]
 
 
-def precision_metric(y_true, y_predict, mask):
-     """
-     input:
-        y_predict: predicted distograms of shape [nr_samples, 64, 64, 64]
-        y_true: ground truth distograms of shape [nr_samples, 64, 64, 64]
-    output:presicion using contact maps
-     """
-     distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
+def precision_metric(y_true, y_pred, mask):
+     """Computes the individual predicions and mean precision for a batch of predictions.
+      Args:
+        y_true: Batch of ground truths.
+        y_pred: Batch of predictions.
+        mask: Batch of masks.
+      Returns:
+        List with precisions for each prediction in batch and mean precision for batch of predictions.
+      """
+     distance_maps_predicted = output_to_distancemaps(y_pred, 2, 22, 64)
      distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
      contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
      contact_maps_true = contact_map_from_distancemap(distance_maps_true)
@@ -279,8 +327,16 @@ def precision_metric(y_true, y_predict, mask):
      return precisions, total_prec / contact_maps_true.shape[0]
 
 
-def recall_metric(y_true, y_predict, mask):
-    distance_maps_predicted = output_to_distancemaps(y_predict, 2, 22, 64)
+def recall_metric(y_true, y_pred, mask):
+    """Computes the individual recall and mean recall for a batch of predictions.
+      Args:
+        y_true: Batch of ground truths.
+        y_pred: Batch of predictions.
+        mask: Batch of masks.
+      Returns:
+        List with recalls for each prediction in batch and mean recall for batch of predictions.
+    """
+    distance_maps_predicted = output_to_distancemaps(y_pred, 2, 22, 64)
     distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
     contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
     contact_maps_true = contact_map_from_distancemap(distance_maps_true)
@@ -301,6 +357,14 @@ def recall_metric(y_true, y_predict, mask):
 
 
 def f_beta_score(precision, recall, beta=1):
+    """Computes the FBeta score.
+      Args:
+        precision: Integer or float.
+        recall: Integer or float.
+        beta: Beta Parameter (Beta=0.5: F0.5 Score, Beta=1: F1 Score, Beta=2: F2 Score).
+      Returns:
+        FBeta score as integer or float.
+    """
     return ((1 + beta**2) * precision * recall) / (beta**2 * precision + recall)
 
 
@@ -309,7 +373,7 @@ def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold
     empty = tf.constant([[0, 0]])
     rank = tf.rank(feature).numpy()
     use_rank = 0
-    if rank>rank_threshold:
+    if rank > rank_threshold:
         use_rank = rank_threshold
     else:
         use_rank = rank
