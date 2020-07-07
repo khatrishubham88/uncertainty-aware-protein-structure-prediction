@@ -14,6 +14,7 @@ sys.setrecursionlimit(100000)
 # warnings.filterwarnings("ignore")
 # tf.autograph.set_verbosity(0)
 from utils import *
+from clr_callback import CyclicLR
 # tf.config.experimental_run_functions_eagerly(True)
 
 
@@ -44,6 +45,7 @@ def main():
     "training_validation_ratio": 0.2,
     # "experimental_val_take": 2
     }
+
     archi_style = "one_group"
     # archi_style = "two_group_prospr"
     # archi_style = "two_group_alphafold"
@@ -110,14 +112,20 @@ def main():
     else:
         raise ValueError("Wrong Architecture Selected!")
 
+    clr = CyclicLR(
+        mode="triangular2",
+        base_lr=1e-7,
+        max_lr=1e-3,
+        step_size=8*2159)
+
     nn = ResNet(input_channels=inp_channel, output_channels=64, num_blocks=num_blocks, num_channels=num_channels,
                 dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"], dropout_rate=0.1,
                 reg_strength=0.)
     model = nn.model()
-    """
-    model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.06),
-                  loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
-    """
+    model.load_weights("P:/proteinfolding_alphafold/minifold_trained/custom_model_weights_epochs_30_batch_size_16").expect_partial()
+    model.compile(loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE,
+                                                             global_batch_size=params["batch_size"]))
+
     tf.print(model.summary())
 
     # to find number of steps for one epoch
@@ -126,14 +134,11 @@ def main():
     except:
         num_of_steps = len(dataprovider)
 
-    """
     # to find learning rate patience with minimum 3 and then epoch dependent
-    lr_patience = 2
-
-    
+    # lr_patience = 2
     # need to be adjusted for validation loss
-    callback_es = tf.keras.callbacks.EarlyStopping('val_loss', verbose=1, patience=5)
-    callback_lr = tf.keras.callbacks.ReduceLROnPlateau('val_loss', verbose=1, patience=lr_patience, min_lr=1e-4)
+    # callback_es = tf.keras.callbacks.EarlyStopping('val_loss', verbose=1, patience=5)
+    # callback_lr = tf.keras.callbacks.ReduceLROnPlateau('val_loss', verbose=1, patience=lr_patience, min_lr=1e-4)
     # to create a new checkpoint directory
     chkpnt_dir = "chkpnt_"
     suffix = 1
@@ -148,24 +153,24 @@ def main():
             break
     checkpoint_path = chkpnt_dir + "/chkpnt"
     callback_checkpoint = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='auto', save_freq='epoch')
-    model.load("minifold_trained/"+archi_style"/saved_model.pb")
+    # model.load("minifold_trained/"+archi_style"/saved_model.pb")
     if params.get("val_path", None) is not None:
-        model_hist = model.fit(dataprovider, # (x, y, mask)
+        history = model.fit(dataprovider, # (x, y, mask)
                             epochs=params["epochs"],
                             verbose=1,
                             steps_per_epoch=num_of_steps,
                             validation_data=validation_data,
                             validation_steps=validation_steps,
-                            callbacks=[callback_lr, callback_es, callback_checkpoint]
+                            callbacks=[clr, callback_checkpoint]
                             )
     else:
-        model_hist = model.fit(dataprovider, # (x, y, mask)
+        history = model.fit(dataprovider, # (x, y, mask)
                             epochs=params["epochs"],
                             verbose=1,
                             steps_per_epoch=num_of_steps,
-                            callbacks=[callback_lr, callback_es]
+                            callbacks=[clr, callback_checkpoint]
                             )
-    print(model_hist.history)
+    print(history.history)
 
     model_dir = "model_weights"
     if os.path.isdir(model_dir) is False:
@@ -174,6 +179,7 @@ def main():
     model.save_weights(model_dir + "/custom_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
     model.save(model_dir + '/' + archi_style)
 
+    """
     history = {'loss': [0.16137753427028656, 0.1508493274450302, 0.1491297036409378, 0.14445514976978302,
                         0.14317423105239868, 0.14306320250034332, 0.14252369105815887, 0.14263318479061127,
                         0.1409928947687149, 0.14060086011886597, 0.1409199982881546, 0.14049330353736877,
@@ -184,9 +190,10 @@ def main():
                             0.13402500748634338, 0.13362358510494232, 0.13353055715560913, 0.1329270601272583],
                'lr': [0.06, 0.06, 0.06, 0.006, 0.006, 0.006, 0.006, 0.006, 0.0006, 0.0006, 0.0006, 0.0006, 0.0006,
                       1e-04, 1e-04, 1e-04]}
+    """
 
     # plot loss
-    x_range = range(1,len(model_hist.history["loss"])+1)
+    x_range = range(1, len(history.history["loss"]) + 1)
     plt.figure()
     plt.title("Loss plot")
     plt.plot(x_range, history["loss"], label="Training loss")
@@ -203,9 +210,10 @@ def main():
     plt.plot(x_range, history["lr"])
     plt.savefig("learning_rate.png")
     plt.close("all")
-    """
 
+    """
     model.load_weights("P:/proteinfolding_alphafold/minifold_trained/custom_model_weights_epochs_30_batch_size_16").expect_partial()
+
     dataprovider = DataGenerator(val_path, **params)
     if params.get("train_path", None) is not None:
         validation_data = dataprovider.get_validation_dataset()
@@ -213,7 +221,6 @@ def main():
             validation_steps = params.get("experimental_val_take", None)
         else:
             validation_steps = dataprovider.get_validation_length()
-    """
     if train_plot:
         for j in range(num_of_steps):
             X, y, mask = next(dataprovider)
@@ -318,7 +325,6 @@ def main():
                     plt.savefig(val_result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
                     plt.close("all")
     """
-
 
 if __name__=="__main__":
     main()
