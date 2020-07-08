@@ -9,7 +9,8 @@ def softmax(x, axis):
 
 
 def model_with_logits_output(features, model_weights=None, output_channels=64, num_blocks=[28], num_channels=[64],
-                             dilation=[1, 2, 4, 8], batch_size=16, crop_size=64, dropout_rate=0.1, reg_strength=1e-4):
+                             dilation=[1, 2, 4, 8], batch_size=16, crop_size=64, dropout_rate=0.1, reg_strength=1e-4,
+                             kernel_initializer="he_normal"):
     if features == 'primary':
         inp_channel = 20
     elif features == 'pri-evo':
@@ -19,7 +20,8 @@ def model_with_logits_output(features, model_weights=None, output_channels=64, n
 
     nn = ResNet(input_channels=inp_channel, output_channels=output_channels, num_blocks=num_blocks,
                 num_channels=num_channels, dilation=dilation, batch_size=batch_size, crop_size=crop_size,
-                dropout_rate=dropout_rate, reg_strength=reg_strength, logits=False)
+                dropout_rate=dropout_rate, reg_strength=reg_strength, kernel_initializer=kernel_initializer,
+                logits=False)
     model = nn.model()
     model.load_weights(model_weights).expect_partial()
     model.summary()

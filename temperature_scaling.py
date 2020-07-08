@@ -171,7 +171,7 @@ if __name__ == '__main__':
                 accuracies, confidences, bin_lengths = get_bin_info(confs, preds, labels, mask, bin_size=0.1)
                 ece = expected_calibration_error(confs, preds, labels, mask)
                 ece_before.append(ece)
-                print("ECE: " + str(ece))
+                print(str(j) + ". ECE: " + str(ece))
                 """
                 print("Before Temperature Scaling:")
                 print("Accuracies: " + str(accuracies))
@@ -200,18 +200,18 @@ if __name__ == '__main__':
                     if j == 0:
                         history, T = fit_TemperatureCalibration(output, labels, mask)
                     else:
-                        history, T = fit_TemperatureCalibration(output, labels, mask, T=tf.Variable([temperatures[-1]]))
-                    print("Temperature: " + str(T) + ", Loss: " + str(history[-1][0]))
+                        history, T = fit_TemperatureCalibration(output, labels, mask, T=tf.Variable([1.]))
+                    print(str(j) + ". Temperature: " + str(T))
                     temperatures.append(T)
                 else:
-                    print("Predicting with learned temperature..")
+                    print(str(j) + ". Predicting with learned temperature..")
 
                 X, ground_truth, mask = val
                 mask = mask.numpy()
                 ground_truth = ground_truth.numpy()
                 logits = model.predict(X)
-                print("Temperature: " + str(temperatures[-1]))
-                confids_scaled = tp.predict(logits, temp=temperatures[-1], training=False)
+                print(str(j) + ". Temperature: " + str(sum(temperatures)/len(temperatures)))
+                confids_scaled = tp.predict(logits, temp=sum(temperatures)/len(temperatures), training=False)
                 labels_scaled = np.argmax(ground_truth, axis=3)
                 preds_scaled = np.argmax(confids_scaled, axis=3)
                 confs_scaled = np.max(confids_scaled, axis=3)
@@ -227,7 +227,7 @@ if __name__ == '__main__':
 
                 ece_scaled = expected_calibration_error(confs_scaled, preds_scaled, labels_scaled, mask)
                 ece_after.append(ece_scaled)
-                print("ECE: " + str(ece_scaled))
+                print(str(j) + ". ECE: " + str(ece_scaled))
                 print("================================")
 
                 """
@@ -236,7 +236,7 @@ if __name__ == '__main__':
                 print("Confidences: " + str(confidences_scaled))
                 print("ECE: " + str(ece_scaled))
                 print("================================")
-
+                
                 plt.style.use('ggplot')
                 fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(22.5, 4), sharex='col', sharey='row')
                 rel_diagram_sub(accuracies, confidences, ax)
