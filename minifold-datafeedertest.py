@@ -18,8 +18,12 @@ from utils import *
 
 
 def main():
-    train_path = glob.glob("P:/casp7/casp7/training/100/*")
-    val_path = glob.glob("P:/casp7/casp7/validation/1")
+    #shubham
+    train_path = glob.glob("../proteinnet/data/casp7/training/100/*")
+    val_path = glob.glob("../proteinnet/data/casp7/validation/1")
+    
+    # train_path = glob.glob("P:/casp7/casp7/training/100/*")
+    # val_path = glob.glob("P:/casp7/casp7/validation/1")
     train_plot = True
     validation_plot = True
 
