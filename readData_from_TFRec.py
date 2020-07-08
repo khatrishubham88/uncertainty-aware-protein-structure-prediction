@@ -95,8 +95,8 @@ def parse_test_tfexample(serialized_input, category):
                                     'mask':         tf.io.FixedLenSequenceFeature((1,),               tf.float32, allow_missing=True)})
 
     id_ = context['id'][0]
-    if category == 'FM':
-        if id_.numpy().decode("utf-8")[0:2] == category:
+    if category == 2: #FM
+        if id_.numpy().decode("utf-8")[0:2] == 'FM':
             primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
             evolutionary = features['evolutionary']
             secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
@@ -110,8 +110,8 @@ def parse_test_tfexample(serialized_input, category):
             return primary, evolutionary, tertiary, ter_mask
         else:
             return None, None, None, None
-    elif category == 'TBM':
-        if id_.numpy().decode("utf-8")[0:4] == category + '#':
+    elif category == 1: #TBM
+        if id_.numpy().decode("utf-8")[0:4] == 'TBM' + '#':
             primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
             evolutionary = features['evolutionary']
             secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
@@ -125,8 +125,8 @@ def parse_test_tfexample(serialized_input, category):
             return primary, evolutionary, tertiary, ter_mask
         else:
             return None, None, None, None
-    elif category == 'TBM-hard':
-        if id_.numpy().decode("utf-8")[0:4] == category[0:4]:
+    elif category == 3: #TBM-hard
+        if id_.numpy().decode("utf-8")[0:4] == 'TBM-hard'[0:4]:
             primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
             evolutionary = features['evolutionary']
             secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
@@ -140,6 +140,33 @@ def parse_test_tfexample(serialized_input, category):
             return primary, evolutionary, tertiary, ter_mask
         else:
             return None, None, None, None
+    elif category == 4: #TBM/TBM-hard
+        if (id_.numpy().decode("utf-8")[0:4] == 'TBM-hard'[0:4] or id_.numpy().decode("utf-8")[0:4] == 'TBM' + '#'):
+            primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
+            evolutionary = features['evolutionary']
+            secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
+            tertiary = features['tertiary']
+            mask = features['mask'][:, 0]
+
+            pri_length = tf.size(primary)
+            # Generate tertiary masking matrix--if mask is missing then assume all residues are present
+            mask = tf.cond(tf.not_equal(tf.size(mask), 0), lambda: mask, lambda: tf.ones([pri_length]))
+            ter_mask = masking_matrix(mask)
+            return primary, evolutionary, tertiary, ter_mask
+        else:
+            return None, None, None, None
+    elif category == 5: #all
+        primary = tf.dtypes.cast(features['primary'][:, 0], tf.int32)
+        evolutionary = features['evolutionary']
+        secondary = tf.dtypes.cast(features['secondary'][:, 0], tf.int32)
+        tertiary = features['tertiary']
+        mask = features['mask'][:, 0]
+
+        pri_length = tf.size(primary)
+        # Generate tertiary masking matrix--if mask is missing then assume all residues are present
+        mask = tf.cond(tf.not_equal(tf.size(mask), 0), lambda: mask, lambda: tf.ones([pri_length]))
+        ter_mask = masking_matrix(mask)
+        return primary, evolutionary, tertiary, ter_mask
 
 
 def parse_dataset(file_paths):
@@ -284,6 +311,6 @@ def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index
 
 
 if __name__ == '__main__':
-    path = "/home/ghalia/Documents/LabCourse/casp7/validation/1"
-    for primary, evolutionary, tertiary, ter_mask in parse_val_dataset(path,50):
-        break
+    path = "/home/ghalia/Documents/alphafold/casp7/training/100/1"
+    for primary, evolutionary, tertiary, ter_mask in parse_dataset(path):
+        print(ter_mask)
