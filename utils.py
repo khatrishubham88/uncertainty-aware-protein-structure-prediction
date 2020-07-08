@@ -2,9 +2,10 @@ import math
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
-
+import matplotlib.pyplot as plt
 from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_crossentropy
 from tensorflow.python.keras.utils import losses_utils
+from tensorflow.keras.metrics import CategoricalAccuracy
 from sklearn.metrics import accuracy_score
 
 
@@ -34,6 +35,51 @@ def categorical_crossentropy_with_wrapper(y_true, y_pred, global_batch_size, fro
     # weight by global batch size
     return loss/global_batch_size
 
+
+def get_batch_metric(metric, true, predict, mask):
+  batch_acc = []
+  for elem in range(int(true.shape[0])):
+    metric.reset_states()
+    _ = metric.update_state(true[elem], predict[elem], sample_weight=mask[elem])
+    batch_acc.append(metric.result().numpy())
+  return batch_acc
+
+def mc_accuracy(y_true, mc_mean_y_pred, mask):
+  accs = []
+  m = CategoricalAccuracy()
+  if len(mc_mean_y_pred.shape)==len(y_true.shape)+1:
+    for i in range(mc_mean_y_pred.shape[0]):
+      accs.append(get_batch_metric(m, y_true, mc_mean_y_pred[i], mask))
+  elif len(mc_mean_y_pred.shape)==len(y_true.shape):
+    accs = get_batch_metric(m, y_true, mc_mean_y_pred, mask)
+  else:
+    raise ValueError("Inappropriate shape of predicted sample")
+  del m
+  return accs
+
+def mc_hist_plot(fname, metric_data, mean_acc=None, title="Accuracy distribution"):
+  plt.figure()
+  plt.title(title)
+  plt.hist(metric_data)
+  if mean_acc is not None:
+    plt.axvline(x=mean_acc, color="b")
+  plt.savefig(fname)
+  plt.close("all")
+
+def distance_map_plotter(fname, y_true, y_pred, mask, title="Distancemap Plots"):
+  plt.figure()
+  plt.subplot(131)
+  plt.title("Ground Truth")
+  plt.imshow(y_true, cmap='viridis_r')
+  plt.subplot(132)
+  plt.title("Prediction by model")
+  plt.imshow(y_pred, cmap='viridis_r')
+  plt.subplot(133)
+  plt.title("mask")
+  plt.imshow(mask, cmap='viridis_r')
+  plt.suptitle(title, fontsize=16)
+  plt.savefig(fname)
+  plt.close("all")
 
 def load_npy_binary(path):
     """Loads in a Numpy binary.
