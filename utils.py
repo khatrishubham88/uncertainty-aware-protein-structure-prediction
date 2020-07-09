@@ -64,7 +64,7 @@ def mc_hist_plot(fname, metric_data, mean_acc=None, title="Accuracy distribution
   if mean_acc is not None:
     plt.axvline(x=mean_acc, color="b")
   plt.savefig(fname)
-  plt.close("all")
+  # plt.close("all")
 
 def distance_map_plotter(fname, y_true, y_pred, mask, title="Distancemap Plots"):
   plt.figure()
@@ -78,8 +78,90 @@ def distance_map_plotter(fname, y_true, y_pred, mask, title="Distancemap Plots")
   plt.title("mask")
   plt.imshow(mask, cmap='viridis_r')
   plt.suptitle(title, fontsize=16)
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False)
+  plt.axis('off')
   plt.savefig(fname)
-  plt.close("all")
+  # plt.close("all")
+
+def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title="Distancemap Plots"):
+  plt.figure(figsize=(10, 10))
+  plt.subplot(221)
+  plt.title("Ground Truth")
+  plt.imshow(y_true, cmap='viridis_r')
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False) # labels along the bottom edge are off
+  plt.axis('off')
+  plt.subplot(222)
+  plt.title("Mean Prediction")
+  plt.imshow(y_pred_mean, cmap='viridis_r')
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False) # labels along the bottom edge are off
+  plt.axis('off')
+  plt.subplot(223)
+  plt.title("Best Prediction")
+  plt.imshow(y_pred_best, cmap='viridis_r')
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False) # labels along the bottom edge are off
+  plt.axis('off')
+  plt.subplot(224)
+  plt.title("mask")
+  plt.imshow(mask, cmap='viridis_r')
+  plt.suptitle(title, fontsize=16)
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False) # labels along the bottom edge are off
+  plt.axis('off')
+  plt.savefig(fname)
 
 def load_npy_binary(path):
     """Loads in a Numpy binary.
@@ -136,15 +218,17 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
         A Numpy array with consisting of predicted distances for each residual pair in the crop.
     """
     output = K.eval(output)
-    distance_maps = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
 
     bins = np.linspace(min_angstrom, max_angstrom, num_bins)
     if len(output.shape) == 4:
         values = np.argmax(output, axis=3)
+        distance_maps = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
+        for batch in range(distance_maps.shape[0]):
+          distance_maps[batch] = bins[values[batch]]
     else:
         values = np.argmax(output, axis=2)
-    for batch in range(distance_maps.shape[0]):
-        distance_maps[batch] = bins[values[batch]]
+        distance_maps = np.zeros(shape=(output.shape[0], output.shape[1]))
+        distance_maps = bins[values]
 
     return distance_maps
 

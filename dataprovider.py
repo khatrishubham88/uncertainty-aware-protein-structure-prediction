@@ -166,7 +166,7 @@ class DataGenerator(object):
                                                         #                  (None, None, None, ),
                                                         #                  (None, None, ))
                                                          )
-        print(self.datafeeder.element_spec)
+        # print(self.datafeeder.element_spec)
         # batch before map, for vectorization.
         self.datafeeder = self.datafeeder.batch(self.batch_size, drop_remainder=True)
 

@@ -13,7 +13,9 @@ from utils import accuracy_metric, precision_metric
 import sys
 
 from utils import *
-
+import matplotlib
+matplotlib.use('Agg')
+plt.style.use("ggplot")
 sys.setrecursionlimit(100000)
 # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 # warnings.filterwarnings("ignore")
@@ -148,17 +150,27 @@ def main():
                 # mc predict
                 mc_pred, mean_predict = model.mc_predict(X, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
                 acc = mc_accuracy(y, mc_pred, mask)
-                # print(acc)
+                # print(mc_pred.shape)
                 data_acc.append(acc)
                 mean_sample_acc = mc_accuracy(y, mean_predict, mask)
                 mean_acc.append(mean_sample_acc)
                 # batch plotting
                 reshaped_acc = tf.convert_to_tensor(acc, dtype=tf.float32)
                 reshaped_acc = tf.transpose(reshaped_acc, perm=[1, 0])
+                y_true_dmap = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
+                mean_predict_dmap = output_to_distancemaps(mean_predict, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
+                mc_pred = tf.transpose(mc_pred, perm=[1,0,2,3,4])
                 for i in range(int(reshaped_acc.shape[0])):
-                    mc_hist_plot(val_result_dir+"/val_data_hist_"+str(i)+".png", reshaped_acc[i].numpy(), mean_sample_acc[i], "Accuracy Distribution Based on Sampling")
-                    distance_map_plotter(val_result_dir+"/val_data_distmap_"+str(i)+".png", output_to_distancemaps(y[i], params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"]), output_to_distancemaps(mean_predict[i], params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"]), mask[i], title="Distancemap Plots For Validation Set")
-            
+                    mc_hist_plot(val_result_dir+"/val_data_hist_batch_"+str(j)+"_sample_"+str(i)+".png", reshaped_acc[i].numpy(), mean_sample_acc[i], "Accuracy Distribution Based on Sampling")
+                    best_idx = np.argmax(reshaped_acc[i].numpy())
+                    # distance_map_plotter(val_result_dir+"/val_data_distmap_batch_"+str(j)+"_sample_"+str(i)+"_mean.png", y_true_dmap[i], mean_predict_dmap[i], mask[i], title="Distancemap Plots For Validation Set")
+                    best_pred = output_to_distancemaps(mc_pred[i, best_idx], params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
+                    # print("input shape = {}, output shpe = {}".format(mc_pred[i, best_idx].shape, best_pred.shape))
+                    # distance_map_plotter(val_result_dir+"/val_data_distmap_batch_"+str(j)+"_sample_"+str(i)+"_best.png", y_true_dmap[i], best_pred, mask[i], title="Distancemap Plots For Validation Set")
+                    mc_distance_map_plotter(val_result_dir+"/val_data_distmap_batch_"+str(j)+"_sample_"+str(i)+".png", y_true_dmap[i], mean_predict_dmap[i], best_pred, mask[i], title="Distancemap Plots For Validation Set")
+                    if i%8==0:
+                        plt.close("all")
+                plt.close("all")
             arr = np.array(data_acc)
             mean_arr = np.array(mean_acc)
             print(arr)

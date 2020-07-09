@@ -643,5 +643,5 @@ class ResNetV2(keras.Model):
         # mean = tf.math.reduce_mean(tf.convert_to_tensor(mc_predictions, dtype=tf.float32), axis
         mc_predictions = tf.convert_to_tensor(mc_predictions, dtype=tf.float32)
         mean = tf.math.reduce_mean(mc_predictions, axis=0)
-        print(mean.shape)
+        # print(mean.shape)
         return mc_predictions, mean
