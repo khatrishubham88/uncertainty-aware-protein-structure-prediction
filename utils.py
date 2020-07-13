@@ -2,9 +2,12 @@ import math
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
-from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
 from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_crossentropy
 from tensorflow.python.keras.utils import losses_utils
+from tensorflow.keras.metrics import CategoricalAccuracy
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
 from sklearn.metrics import accuracy_score, confusion_matrix, multilabel_confusion_matrix, precision_score, recall_score
 
 
@@ -34,6 +37,133 @@ def categorical_crossentropy_with_wrapper(y_true, y_pred, global_batch_size, fro
     # weight by global batch size
     return loss/global_batch_size
 
+
+def get_batch_metric(metric, true, predict, mask):
+  batch_acc = []
+  for elem in range(int(true.shape[0])):
+    metric.reset_states()
+    _ = metric.update_state(true[elem], predict[elem], sample_weight=mask[elem])
+    batch_acc.append(metric.result().numpy())
+  return batch_acc
+
+def mc_accuracy(y_true, mc_mean_y_pred, mask):
+  accs = []
+  m = CategoricalAccuracy()
+  if len(mc_mean_y_pred.shape)==len(y_true.shape)+1:
+    for i in range(mc_mean_y_pred.shape[0]):
+      accs.append(get_batch_metric(m, y_true, mc_mean_y_pred[i], mask))
+  elif len(mc_mean_y_pred.shape)==len(y_true.shape):
+    accs = get_batch_metric(m, y_true, mc_mean_y_pred, mask)
+  else:
+    raise ValueError("Inappropriate shape of predicted sample")
+  del m
+  return accs
+
+def mc_hist_plot(fname, metric_data, mean_acc=None, title="Accuracy distribution"):
+  plt.figure()
+  plt.title(title)
+  plt.hist(metric_data)
+  if mean_acc is not None:
+    plt.axvline(x=mean_acc, color="b")
+  plt.savefig(fname)
+  # plt.close("all")
+
+def distance_map_plotter(fname, y_true, y_pred, mask, title="Distancemap Plots"):
+  plt.figure()
+  plt.subplot(131)
+  plt.title("Ground Truth")
+  plt.imshow(y_true, cmap='viridis_r')
+  plt.subplot(132)
+  plt.title("Prediction by model")
+  plt.imshow(y_pred, cmap='viridis_r')
+  plt.subplot(133)
+  plt.title("mask")
+  plt.imshow(mask, cmap='viridis_r')
+  plt.suptitle(title, fontsize=16)
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False)
+  plt.axis('off')
+  plt.savefig(fname)
+  # plt.close("all")
+
+def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title="Distancemap Plots"):
+  plt.figure(figsize=(10, 10))
+  plt.subplot(221)
+  plt.title("Ground Truth")
+  plt.imshow(y_true, cmap='viridis_r')
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False) # labels along the bottom edge are off
+  plt.axis('off')
+  plt.subplot(222)
+  plt.title("Mean Prediction")
+  plt.imshow(y_pred_mean, cmap='viridis_r')
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False) # labels along the bottom edge are off
+  plt.axis('off')
+  plt.subplot(223)
+  plt.title("Best Prediction")
+  plt.imshow(y_pred_best, cmap='viridis_r')
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False) # labels along the bottom edge are off
+  plt.axis('off')
+  plt.subplot(224)
+  plt.title("mask")
+  plt.imshow(mask, cmap='viridis_r')
+  plt.suptitle(title, fontsize=16)
+  plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    direction='inout',
+    left=False, 
+    right=False,
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False, 
+    labeltop=False, 
+    labelleft=False, 
+    labelright=False) # labels along the bottom edge are off
+  plt.axis('off')
+  plt.savefig(fname)
 
 def load_npy_binary(path):
     """Loads in a Numpy binary.
@@ -90,15 +220,17 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
         A Numpy array with consisting of predicted distances for each residual pair in the crop.
     """
     output = K.eval(output)
-    distance_maps = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
 
     bins = np.linspace(min_angstrom, max_angstrom, num_bins)
     if len(output.shape) == 4:
         values = np.argmax(output, axis=3)
+        distance_maps = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
+        for batch in range(distance_maps.shape[0]):
+          distance_maps[batch] = bins[values[batch]]
     else:
         values = np.argmax(output, axis=2)
-    for batch in range(distance_maps.shape[0]):
-        distance_maps[batch] = bins[values[batch]]
+        distance_maps = np.zeros(shape=(output.shape[0], output.shape[1]))
+        distance_maps = bins[values]
 
     return distance_maps
 

@@ -1,7 +1,7 @@
 from tensorflow.keras import Input
 from tensorflow.keras.layers import Activation, Add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
 from trainable_model import CustomModel
-from tensorflow.keras.regularizers import l2
+from tensorflow.keras.regularizers import l2, l1, l1_l2
 
 
 class ResNet():
@@ -26,6 +26,7 @@ class ResNet():
         self.reg_strength = reg_strength
         self.kernel_initializer = kernel_initializer
         self.logits = logits
+        self.kernel_regularizer = l2
 
     def model(self):
         """Function that creates the network based on initialized
