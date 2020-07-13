@@ -300,7 +300,7 @@ def distogram_accuracy_metric(y_true, y_pred, mask, minimum_bin_val, maximum_bin
               continue
           samples_acc.append(sample_accuracy)
           total_accu = total_accu + sample_accuracy
-     return samples_acc, total_accu / set_size
+     return total_accu/set_size
 
 def distogram_precision_metric(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, num_bins):
      """Computes the individual precisions and mean precision for a batch of predictions
@@ -312,48 +312,20 @@ def distogram_precision_metric(y_true, y_pred, mask, minimum_bin_val, maximum_bi
       Returns:
         List with precisions for each prediction in batch and mean precision for batch of predictions.
       """
+     print('y_true shape:', y_true.shape)
+     print('y_pred shape:', y_pred.shape)
      distance_maps_pred = output_to_distancemaps(y_pred, minimum_bin_val, maximum_bin_val, num_bins)
      total_precesion = 0
+     total_recall = 0
+     total_accuracy = 0
      set_size = y_true.shape[0]
      true_classes = np.zeros((y_true.shape[1], y_true.shape[2]))
      pred_classes = np.zeros((y_true.shape[1], y_true.shape[2]))
      samples_prec = []
-     classes = [str(i) for i in range(num_bins)]   ##[0-->63]
-     for sample in range(y_true.shape[0]):
-          y_pred_disto = to_distogram(distance_maps_pred[sample], minimum_bin_val, maximum_bin_val, num_bins)
-          for x in range(y_true[sample].shape[0]):
-              for y in range(y_true[sample].shape[1]):
-                  bin_index_true = np.argmax(y_true[sample][x,y])
-                  bin_index_pred = np.argmax(y_pred_disto[x,y])
-                  y_true_class = classes[bin_index_true]
-                  y_pred_class = classes[bin_index_pred]
-                  true_classes[x,y] = y_true_class
-                  pred_classes[x,y] = y_pred_class
-          sample_precision = precision_score(true_classes.flatten(), pred_classes.flatten(),
-                                            average = 'micro', sample_weight= mask[sample].flatten())
-          if (math.isnan(sample_precision)):
-              set_size  = set_size - 1
-              continue
-          samples_prec.append(sample_precision)
-          total_precesion = total_precesion + sample_precision
-     return samples_prec, total_precesion / set_size
-
-def distogram_recall_metric(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, num_bins):
-     """Computes the individual recalls and mean recall for a batch of predictions
-     based on the predicted dostograms.
-     Args:
-     y_true: Batch of ground truths.
-     y_pred: Batch of predictions.
-     mask: Batch of masks.
-     Returns:
-     List with recalls for each prediction in batch and mean recall for batch of predictions.
-     """
-     distance_maps_pred = output_to_distancemaps(y_pred, minimum_bin_val, maximum_bin_val, num_bins)
-     total_recall = 0
-     set_size = y_true.shape[0]
-     true_classes = np.zeros((y_true.shape[1], y_true.shape[2]))
-     pred_classes = np.zeros((y_true.shape[1], y_true.shape[2]))
      samples_recall = []
+     samples_accuracy = []
+     t_c = []
+     p_c = []
      classes = [str(i) for i in range(num_bins)]   ##[0-->63]
      for sample in range(y_true.shape[0]):
           y_pred_disto = to_distogram(distance_maps_pred[sample], minimum_bin_val, maximum_bin_val, num_bins)
@@ -361,18 +333,35 @@ def distogram_recall_metric(y_true, y_pred, mask, minimum_bin_val, maximum_bin_v
               for y in range(y_true[sample].shape[1]):
                   bin_index_true = np.argmax(y_true[sample][x,y])
                   bin_index_pred = np.argmax(y_pred_disto[x,y])
+                  #print(bin_index_true)
+                  #print(bin_index_pred)
+                  #print('---------------------')
                   y_true_class = classes[bin_index_true]
                   y_pred_class = classes[bin_index_pred]
                   true_classes[x,y] = y_true_class
                   pred_classes[x,y] = y_pred_class
-          sample_recall = recall_score(true_classes.flatten(), pred_classes.flatten(),
-                                             average = 'micro', sample_weight= mask[sample].flatten())
-          if (math.isnan(sample_recall)):
+          if (np.count_nonzero(mask[sample]) == 0 ):
               set_size  = set_size - 1
               continue
+          sample_precision = precision_score(true_classes.flatten(), pred_classes.flatten(),
+                                           average = 'macro', sample_weight= mask[sample].flatten())
+          sample_recall = recall_score(true_classes.flatten(), pred_classes.flatten(),
+                                              average = 'macro', sample_weight= mask[sample].flatten())
+          sample_accuracy = accuracy_score(true_classes.flatten(), pred_classes.flatten(), normalize = True,
+                                                sample_weight= mask[sample].flatten())
+          #print(sample_recall)
+          t_c.extend(true_classes.flatten())
+          p_c.extend(pred_classes.flatten())
+          #break
+          samples_prec.append(sample_precision)
           samples_recall.append(sample_recall)
+          samples_accuracy.append(sample_accuracy)
           total_recall = total_recall + sample_recall
-     return samples_recall, total_recall / set_size
+          total_precesion = total_precesion + sample_precision
+          total_accuracy = total_accuracy + sample_accuracy
+     cm = confusion_matrix(t_c, p_c)
+     return total_accuracy/set_size, total_precesion/set_size, total_recall/set_size, cm
+
 
 def accuracy_metric(y_true, y_pred, mask):
      """Computes the individual accuracies and mean accuracy for a batch of predictions
@@ -392,12 +381,12 @@ def accuracy_metric(y_true, y_pred, mask):
      total_accu = 0
      sample_acc = []
      for sample in range(contact_maps_true.shape[0]):
-         sample_accuracy = accuracy_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten(),
-                                          normalize=False,
-                                          sample_weight=mask[sample].flatten()) / np.count_nonzero(mask[sample])
-         if (math.isnan(sample_accuracy)):
+         if (np.count_nonzero(mask[sample]) == 0 ):
              set_size  = set_size - 1
              continue
+         sample_accuracy = accuracy_score(contact_maps_true[sample].flatten(), contact_maps_predicted[sample].flatten(),
+                                          normalize=True,
+                                          sample_weight=mask[sample].flatten())
          sample_acc.append(sample_accuracy)
          total_accu = total_accu + sample_accuracy
      return sample_acc, total_accu / set_size
