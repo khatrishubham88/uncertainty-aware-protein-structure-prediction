@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow.keras.backend as K
 import numpy as np
-from utils import accuracy_metric, precision_metric, distogram_accuracy_metric, distogram_precision_metric, f_beta_score
+from utils import accuracy_metric, precision_metric, distogram_metrics, f_beta_score
 from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, parse_dataset
 import sys
 from network import ResNet
@@ -146,60 +146,49 @@ def evaluate(testdata_path, model_path, category):
 #     # print('Contact map based Precision: ', total_precesion)
 #     # print('Contact map based Recall: ', total_recall)
 #     # print('Contact map based F1_Score: ', f1)
-#
-#     #accuracy = distogram_accuracy_metric(y, y_predict, mask, params['minimum_bin_val'],
-#     #                                                                    params['maximum_bin_val'], params['num_bins'])
-    accuracy, precision, recall, cm = distogram_precision_metric(y, y_predict, mask, params['minimum_bin_val'],
+
+    accuracy, precision, recall, cm = distogram_metrics(y, y_predict, mask, params['minimum_bin_val'],
                                                                         params['maximum_bin_val'], params['num_bins'])
-#     #distogram_f1_score = f_beta_score(distogram_prec_total, distogram_recall_total, 1)
-#
-# #    distogram_precision_metric(y, y_predict, mask, params['minimum_bin_val'],
-# #                                                                        params['maximum_bin_val'], params['num_bins'])
-# #    distogram_recall_metric(y, y_predict, mask, params['minimum_bin_val'],
-# #                                                                      params['maximum_bin_val'], params['num_bins'])
-#
-# #    distogram_precision_metric(y, y_predict, mask, params['minimum_bin_val'],
-# #                                                                 params['maximum_bin_val'], params['num_bins'])
-#     #print(distogram_prec_samples == distogram_recall_samples)
-#     print('Distogram based Accuracy:', accuracy)
-#     print('Distogram based Precision:', precision)
-#     print('Distogram based Recall:', recall)
-#     #print('Distogram based F1-score:', distogram_f1_score)
-#
-#     #entropy =  entropy_func(y_predict)
-#     #print('Prediction Entropy:', entropy)
-#
-    classes = [i+0 for i in range(64)]
-    title = "fuck you"
-    cmap = "coolwarm"
-    normalize = False
-    fig, ax = plt.subplots()
-    fig.set_size_inches(34, 34)
-    im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
-    ax.figure.colorbar(im, ax=ax)
-    # We want to show all ticks...
-    ax.set(xticks=np.arange(cm.shape[1]),
-    yticks=np.arange(cm.shape[0]),
-    # ... and label them with the respective list entries
-    xticklabels=classes, yticklabels=classes,
-    title=title,
-    ylabel='True label',
-    xlabel='Predicted label')
+    f1_score = f_beta_score(precision, recall_total, 1)
+    print('Distogram based Accuracy:', accuracy)
+    print('Distogram based Precision:', precision)
+    print('Distogram based Recall:', recall)
+    print('Distogram based F1-score:', f1_score)
 
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-    rotation_mode="anchor")
+    entropy =  entropy_func(y_predict)
+    print('Prediction Entropy:', entropy)
 
-    # Loop over data dimensions and create text annotations.
-    fmt = '.2f' if normalize else 'd'
-    thresh = cm.max() / 2.
-    for i in range(cm.shape[0]):
-        for j in range(cm.shape[1]):
-            ax.text(j, i, format(cm[i, j], fmt),
-            ha="center", va="center",
-            color="white" if cm[i, j] > thresh else "black")
-    fig.tight_layout()
-    fig.savefig("cm.png")
+    # classes = [i+0 for i in range(64)]
+    # title = "Confusion matrix"
+    # cmap = "coolwarm"
+    # normalize = False
+    # fig, ax = plt.subplots()
+    # fig.set_size_inches(34, 34)
+    # im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
+    # ax.figure.colorbar(im, ax=ax)
+    # # We want to show all ticks...
+    # ax.set(xticks=np.arange(cm.shape[1]),
+    # yticks=np.arange(cm.shape[0]),
+    # # ... and label them with the respective list entries
+    # xticklabels=classes, yticklabels=classes,
+    # title=title,
+    # ylabel='True label',
+    # xlabel='Predicted label')
+    #
+    # # Rotate the tick labels and set their alignment.
+    # plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+    # rotation_mode="anchor")
+    #
+    # # Loop over data dimensions and create text annotations.
+    # fmt = '.2f' if normalize else 'd'
+    # thresh = cm.max() / 2.
+    # for i in range(cm.shape[0]):
+    #     for j in range(cm.shape[1]):
+    #         ax.text(j, i, format(cm[i, j], fmt),
+    #         ha="center", va="center",
+    #         color="white" if cm[i, j] > thresh else "black")
+    # fig.tight_layout()
+    # fig.savefig("cm.png")
 
 
 if __name__=="__main__":

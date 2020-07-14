@@ -84,13 +84,13 @@ def distance_map_plotter(fname, y_true, y_pred, mask, title="Distancemap Plots")
     axis='both',          # changes apply to the x-axis
     which='both',      # both major and minor ticks are affected
     direction='inout',
-    left=False, 
+    left=False,
     right=False,
     bottom=False,      # ticks along the bottom edge are off
     top=False,         # ticks along the top edge are off
-    labelbottom=False, 
-    labeltop=False, 
-    labelleft=False, 
+    labelbottom=False,
+    labeltop=False,
+    labelleft=False,
     labelright=False)
   plt.axis('off')
   plt.savefig(fname)
@@ -105,13 +105,13 @@ def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title=
     axis='both',          # changes apply to the x-axis
     which='both',      # both major and minor ticks are affected
     direction='inout',
-    left=False, 
+    left=False,
     right=False,
     bottom=False,      # ticks along the bottom edge are off
     top=False,         # ticks along the top edge are off
-    labelbottom=False, 
-    labeltop=False, 
-    labelleft=False, 
+    labelbottom=False,
+    labeltop=False,
+    labelleft=False,
     labelright=False) # labels along the bottom edge are off
   plt.axis('off')
   plt.subplot(222)
@@ -121,13 +121,13 @@ def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title=
     axis='both',          # changes apply to the x-axis
     which='both',      # both major and minor ticks are affected
     direction='inout',
-    left=False, 
+    left=False,
     right=False,
     bottom=False,      # ticks along the bottom edge are off
     top=False,         # ticks along the top edge are off
-    labelbottom=False, 
-    labeltop=False, 
-    labelleft=False, 
+    labelbottom=False,
+    labeltop=False,
+    labelleft=False,
     labelright=False) # labels along the bottom edge are off
   plt.axis('off')
   plt.subplot(223)
@@ -137,13 +137,13 @@ def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title=
     axis='both',          # changes apply to the x-axis
     which='both',      # both major and minor ticks are affected
     direction='inout',
-    left=False, 
+    left=False,
     right=False,
     bottom=False,      # ticks along the bottom edge are off
     top=False,         # ticks along the top edge are off
-    labelbottom=False, 
-    labeltop=False, 
-    labelleft=False, 
+    labelbottom=False,
+    labeltop=False,
+    labelleft=False,
     labelright=False) # labels along the bottom edge are off
   plt.axis('off')
   plt.subplot(224)
@@ -154,13 +154,13 @@ def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title=
     axis='both',          # changes apply to the x-axis
     which='both',      # both major and minor ticks are affected
     direction='inout',
-    left=False, 
+    left=False,
     right=False,
     bottom=False,      # ticks along the bottom edge are off
     top=False,         # ticks along the top edge are off
-    labelbottom=False, 
-    labeltop=False, 
-    labelleft=False, 
+    labelbottom=False,
+    labeltop=False,
+    labelleft=False,
     labelright=False) # labels along the bottom edge are off
   plt.axis('off')
   plt.savefig(fname)
@@ -405,36 +405,7 @@ def contact_map_from_distancemap(distance_maps):
         contact_maps[batch] = np.where(distance_maps[batch] > 8, 0, 1)  # Distance > 8 yield 0, otherwise 1
     return contact_maps
 
-def distogram_accuracy_metric(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, num_bins):
-     """Computes the individual accuracies and mean accuracy for a batch of predictions
-     based on the predicted dostograms.
-      Args:
-        y_true: Batch of ground truths.
-        y_pred: Batch of predictions.
-        mask: Batch of masks.
-      Returns:
-        List with accuracies for each prediction in batch and mean accuracy for batch of predictions.
-      """
-     distance_maps_pred = output_to_distancemaps(y_pred, minimum_bin_val, maximum_bin_val, num_bins)
-     total_accu = 0
-     set_size = y_true.shape[0]
-     sample_acc = np.zeros((y_true.shape[1], y_true.shape[2]))
-     samples_acc = []
-     for sample in range(y_true.shape[0]):
-          y_pred_disto = to_distogram(distance_maps_pred[sample], minimum_bin_val, maximum_bin_val, num_bins)
-          for x in range(y_true[sample].shape[0]):
-              for y in range(y_true[sample].shape[1]):
-                  aa_pair_accuracy = accuracy_score(y_true[sample][x,y], y_pred_disto[x,y])
-                  sample_acc[x,y] = aa_pair_accuracy
-          sample_accuracy = (sample_acc.flatten() * mask[sample].flatten()).sum()/np.count_nonzero(mask[sample])
-          if (math.isnan(sample_accuracy)):
-              set_size  = set_size - 1
-              continue
-          samples_acc.append(sample_accuracy)
-          total_accu = total_accu + sample_accuracy
-     return total_accu/set_size
-
-def distogram_precision_metric(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, num_bins):
+def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, num_bins):
      """Computes the individual precisions and mean precision for a batch of predictions
      based on the predicted dostograms.
       Args:
