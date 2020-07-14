@@ -6,9 +6,7 @@ import matplotlib.pyplot as plt
 from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_crossentropy
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.keras.metrics import CategoricalAccuracy
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import classification_report
-from sklearn.metrics import accuracy_score, confusion_matrix, multilabel_confusion_matrix, precision_score, recall_score
+from sklearn.metrics import accuracy_score, confusion_matrix, multilabel_confusion_matrix, precision_score, recall_score, f1_score
 
 
 class CategoricalCrossentropyForDistributed(LossFunctionWrapper):
@@ -421,12 +419,14 @@ def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, nu
      total_precesion = 0
      total_recall = 0
      total_accuracy = 0
+     total_f1 = 0
      set_size = y_true.shape[0]
      true_classes = np.zeros((y_true.shape[1], y_true.shape[2]))
      pred_classes = np.zeros((y_true.shape[1], y_true.shape[2]))
      samples_prec = []
      samples_recall = []
      samples_accuracy = []
+     samples_f1 = []
      t_c = []
      p_c = []
      classes = [str(i) for i in range(num_bins)]   ##[0-->63]
@@ -436,9 +436,6 @@ def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, nu
               for y in range(y_true[sample].shape[1]):
                   bin_index_true = np.argmax(y_true[sample][x,y])
                   bin_index_pred = np.argmax(y_pred_disto[x,y])
-                  #print(bin_index_true)
-                  #print(bin_index_pred)
-                  #print('---------------------')
                   y_true_class = classes[bin_index_true]
                   y_pred_class = classes[bin_index_pred]
                   true_classes[x,y] = y_true_class
@@ -447,23 +444,26 @@ def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, nu
               set_size  = set_size - 1
               continue
           sample_precision = precision_score(true_classes.flatten(), pred_classes.flatten(),
-                                           average = 'macro', sample_weight= mask[sample].flatten())
+                                           average = 'weighted', sample_weight= mask[sample].flatten())
           sample_recall = recall_score(true_classes.flatten(), pred_classes.flatten(),
-                                              average = 'macro', sample_weight= mask[sample].flatten())
+                                              average = 'weighted', sample_weight= mask[sample].flatten())
+          sample_f1 = f1_score(true_classes.flatten(), pred_classes.flatten(),
+                                              average = 'weighted', sample_weight= mask[sample].flatten())
           sample_accuracy = accuracy_score(true_classes.flatten(), pred_classes.flatten(), normalize = True,
                                                 sample_weight= mask[sample].flatten())
-          #print(sample_recall)
           t_c.extend(true_classes.flatten())
           p_c.extend(pred_classes.flatten())
-          #break
+
           samples_prec.append(sample_precision)
           samples_recall.append(sample_recall)
           samples_accuracy.append(sample_accuracy)
+          samples_f1.append(sample_f1)
           total_recall = total_recall + sample_recall
           total_precesion = total_precesion + sample_precision
           total_accuracy = total_accuracy + sample_accuracy
+          total_f1 = total_f1 + sample_f1
      cm = confusion_matrix(t_c, p_c)
-     return total_accuracy/set_size, total_precesion/set_size, total_recall/set_size, cm
+     return total_accuracy/set_size, total_precesion/set_size, total_recall/set_size, total_f1/set_size, cm
 
 
 def accuracy_metric(y_true, y_pred, mask):
