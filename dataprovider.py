@@ -113,7 +113,6 @@ class DataGenerator(object):
         self.iterator = None
         self.__iter__()
 
-
     def __len__(self):
         'Denotes the number of batches per epoch'
         return int(np.floor(self.datasize / self.batch_size))

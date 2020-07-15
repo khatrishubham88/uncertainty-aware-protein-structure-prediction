@@ -31,6 +31,20 @@ def model_with_logits_output(features, model_weights=None, output_channels=64, n
     return model
 
 
+def preprocess_input_ece(y_pred, y_true, mask, axis=3):
+    confids = softmax(y_pred, axis=axis)
+    labels = np.argmax(y_true, axis=axis)
+    preds = np.argmax(confids, axis=axis)
+    confs = np.max(confids, axis=axis)
+
+    max_confidence = np.reshape(confs, -1)
+    prediction = np.reshape(preds, -1)
+    mask = np.reshape(mask, -1)
+    true_labels = np.reshape(labels, -1)
+
+    return max_confidence, prediction, mask, true_labels
+
+
 def get_bin_info(conf, pred, true, mask, bin_size=0.1):
     upper_bounds = np.arange(bin_size, 1 + bin_size, bin_size)
 
@@ -105,16 +119,19 @@ def expected_calibration_error(conf, pred, true, mask, bin_size=0.1):
     return ece
 
 
-def predict_with_temperature(logits, temp=None):
+def predict_with_temperature(logits, temp=None, training=True):
     shape = logits.shape
     logits = np.reshape(logits, (-1, 64))
-    for i in range(logits.shape[0]):
-        logits[i] = logits[i] / temp
-    softmax_probs = softmax(np.reshape(logits, shape), axis=-1)
-    return softmax_probs
+    #for i in range(logits.shape[0]):
+    logits = logits / temp
+    if training:
+        out = softmax(np.reshape(logits, shape), axis=-1)
+    else:
+        out = np.reshape(logits, shape)
+    return out
 
 
-def calibrate_temperature(x_val, y_val, mask, temp=tf.Variable(tf.ones(shape=(64,))), epochs=10):
+def calibrate_temperature(x_val, y_val, mask, temp=tf.Variable(tf.ones(shape=(1,))), epochs=3):
     history = []
     optimizer = Adam(learning_rate=1e-3)
 

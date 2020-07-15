@@ -327,15 +327,15 @@ def distogram_precision_metric(y_true, y_pred, mask, minimum_bin_val, maximum_bi
           y_pred_disto = to_distogram(distance_maps_pred[sample], minimum_bin_val, maximum_bin_val, num_bins)
           for x in range(y_true[sample].shape[0]):
               for y in range(y_true[sample].shape[1]):
-                  bin_index_true = np.argmax(y_true[sample][x,y])
-                  bin_index_pred = np.argmax(y_pred_disto[x,y])
+                  bin_index_true = np.argmax(y_true[sample][x, y])
+                  bin_index_pred = np.argmax(y_pred_disto[x, y])
                   y_true_class = classes[bin_index_true]
                   y_pred_class = classes[bin_index_pred]
-                  true_classes[x,y] = y_true_class
-                  pred_classes[x,y] = y_pred_class
+                  true_classes[x, y] = y_true_class
+                  pred_classes[x, y] = y_pred_class
           sample_precision = precision_score(true_classes.flatten(), pred_classes.flatten(),
-                                            average = 'micro', sample_weight= mask[sample].flatten())
-          if (math.isnan(sample_precision)):
+                                             average='micro', sample_weight=mask[sample].flatten())
+          if(math.isnan(sample_precision)):
               set_size  = set_size - 1
               continue
           samples_prec.append(sample_precision)
@@ -365,16 +365,16 @@ def distogram_recall_metric(y_true, y_pred, mask, minimum_bin_val, maximum_bin_v
           y_pred_disto = to_distogram(distance_maps_pred[sample], minimum_bin_val, maximum_bin_val, num_bins)
           for x in range(y_true[sample].shape[0]):
               for y in range(y_true[sample].shape[1]):
-                  bin_index_true = np.argmax(y_true[sample][x,y])
-                  bin_index_pred = np.argmax(y_pred_disto[x,y])
+                  bin_index_true = np.argmax(y_true[sample][x, y])
+                  bin_index_pred = np.argmax(y_pred_disto[x, y])
                   y_true_class = classes[bin_index_true]
                   y_pred_class = classes[bin_index_pred]
-                  true_classes[x,y] = y_true_class
-                  pred_classes[x,y] = y_pred_class
+                  true_classes[x, y] = y_true_class
+                  pred_classes[x, y] = y_pred_class
           sample_recall = recall_score(true_classes.flatten(), pred_classes.flatten(),
-                                             average = 'micro', sample_weight= mask[sample].flatten())
-          if (math.isnan(sample_recall)):
-              set_size  = set_size - 1
+                                       average='micro', sample_weight=mask[sample].flatten())
+          if(math.isnan(sample_recall)):
+              set_size = set_size - 1
               continue
           samples_recall.append(sample_recall)
           total_recall = total_recall + sample_recall
@@ -437,7 +437,7 @@ def precision_metric(y_true, y_pred, mask):
                       & (contact_maps_predicted[sample].flatten() == 1)) * mask[sample].flatten()).sum()
          sample_prec = true_pos / (true_pos + false_pos)
          if (math.isnan(sample_prec)):
-             set_size =  set_size - 1
+             set_size = set_size - 1
              continue
          precisions.append(sample_prec)
          total_prec = total_prec + sample_prec
