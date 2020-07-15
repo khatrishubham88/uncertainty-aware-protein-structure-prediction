@@ -26,22 +26,6 @@ params = {
 "modelling_group":5         # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
 }
 
-
-def entropy_func(y_predict):
-    sample_entropy = np.zeros((y_predict.shape[1], y_predict.shape[2]))
-    samples_entropy = []
-    tot_entropy = 0
-    for sample in range(y_predict.shape[0]):
-        for x in range(y_predict[sample].shape[0]):
-            for y in range(y_predict[sample].shape[1]):
-                ent = entropy(y_predict[sample][x,y])
-                sample_entropy[x,y] = ent
-
-        sample_mean = np.mean(sample_entropy)
-        samples_entropy.append(sample_mean)
-    return np.mean(sample_entropy)
-
-
 def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, stride):
     batches = []
     for x in range(0,padded_primary.shape[0],stride):
@@ -61,14 +45,18 @@ def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_
 def evaluate(testdata_path, model_path, category):
     #path = "/home/ghalia/Documents/alphafold/pcss20-proteinfolding/minifold_trained/custom_model_weights_epochs_30_batch_size_16"
     # path = glob.glob("/home/ghalia/Documents/alphafold/casp7/training/50/*")
+    # testdata_path = glob.glob(testdata_path + '/*')
     # dis = []
-    # for primary, evolutionary, tertiary, ter_mask in parse_dataset(path):
+    # proteins = 0
+    # for primary, evolutionary, tertiary, ter_mask in parse_test_dataset(testdata_path, int(category)):
     #     if (primary != None):
     #         dist_map = calc_pairwise_distances(tertiary)
     #         dist_map = np.asarray(dist_map)
     #         dis.extend(dist_map.flatten())
-    # _ = plt.hist(dis, bins = 8, range = (0,80), rwidth=0.5)
-    # plt.savefig("fig2.png")
+    #         proteins = proteins +1
+    # _ = plt.hist(dis, bins = 12, range = (0,80), rwidth=0.5)
+    # plt.title('All categories, #proteins='+str(proteins))
+    # plt.savefig("All-cat.png")
     testdata_path = glob.glob(testdata_path + '/*')
     params["modelling_group"] = int(category)
     print('Setting model architecture...')

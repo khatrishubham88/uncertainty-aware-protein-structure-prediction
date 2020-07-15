@@ -22,19 +22,6 @@ params = {
 "modelling_group":5         # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
 }
 
-def entropy_func(y_predict):
-    sample_entropy = np.zeros((y_predict.shape[1], y_predict.shape[2]))
-    samples_entropy = []
-    tot_entropy = 0
-    for sample in range(y_predict.shape[0]):
-        for x in range(y_predict[sample].shape[0]):
-            for y in range(y_predict[sample].shape[1]):
-                ent = entropy(y_predict[sample][x,y])
-                sample_entropy[x,y] = ent
-
-        sample_mean = np.mean(sample_entropy)
-        samples_entropy.append(sample_mean)
-    return np.mean(sample_entropy)
 
 def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, stride):
     batches = []
@@ -112,11 +99,8 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
         X = X[0:X.shape[0]-drop_samples,:,:]
         mask = mask[0:mask.shape[0]-drop_samples,:,:]
         y = y[0:y.shape[0]-drop_samples,:,:,:]
-    
+
     mc_pred, mean_predict = model.mc_predict(X)
-    print(mc_pred.shape)
-    print(mean_predict.shape)
-    print(mean_predict[0,0,0,:])
-    entropy =  entropy_func(mean_predict)
-    print('Prediction Entropy with MC:', entropy)
-    #for iter in range(mc_pred.shape[0]):
+    #entropy =  entropy_func(mean_predict)
+    #print('Prediction Entropy with MC:', entropy)
+    #for iter in range(mean_predict.shape[0]):
