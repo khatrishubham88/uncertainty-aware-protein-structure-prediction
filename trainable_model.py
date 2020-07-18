@@ -91,6 +91,7 @@ class CustomModel(keras.Model):
         # Note that it will include the loss (tracked in self.metrics).
         return {m.name: m.result() for m in self.metrics}
 
+
 if __name__=="__main__":
     
     # get data

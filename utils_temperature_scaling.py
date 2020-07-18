@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from network import ResNet
+from network_sparse import ResNetV2
 from tensorflow.keras.optimizers import Adam
 
 
@@ -10,23 +10,21 @@ def softmax(x, axis):
     return exps / np.sum(exps, axis=axis, keepdims=True)
 
 
-def model_with_logits_output(features, model_weights=None, output_channels=64, num_blocks=[28], num_channels=[64],
-                             dilation=[1, 2, 4, 8], batch_size=16, crop_size=64, dropout_rate=0.1, reg_strength=1e-4,
+def model_with_logits_output(inp_channel=41, output_channels=64, num_blocks=None, num_channels=None,
+                             dilation=None, batch_size=16, crop_size=64, dropout_rate=0.1, reg_strength=1e-4,
                              kernel_initializer="he_normal"):
-    if features == 'primary':
-        inp_channel = 20
-    elif features == 'pri-evo':
-        inp_channel = 41
-    else:
-        raise ValueError("Wrong feature selection! Choose 'primary' or 'pri-evo'!")
 
-    nn = ResNet(input_channels=inp_channel, output_channels=output_channels, num_blocks=num_blocks,
-                num_channels=num_channels, dilation=dilation, batch_size=batch_size, crop_size=crop_size,
-                dropout_rate=dropout_rate, reg_strength=reg_strength, kernel_initializer=kernel_initializer,
-                logits=False)
-    model = nn.model()
-    model.load_weights(model_weights).expect_partial()
-    model.summary()
+    if num_channels is None:
+        num_channels = [64]
+    if num_blocks is None:
+        num_blocks = [28]
+    if dilation is None:
+        dilation = [1, 2, 4, 8]
+
+    model = ResNetV2(input_channels=inp_channel, output_channels=output_channels, num_blocks=num_blocks,
+                     num_channels=num_channels, dilation=dilation, batch_size=batch_size, crop_size=crop_size,
+                     non_linearity='elu', dropout_rate=dropout_rate, reg_strength=reg_strength, logits=False,
+                     kernel_initializer=kernel_initializer, kernel_regularizer="l2")
 
     return model
 
@@ -122,18 +120,18 @@ def expected_calibration_error(conf, pred, true, mask, bin_size=0.1):
 def predict_with_temperature(logits, temp=None, training=True):
     shape = logits.shape
     logits = np.reshape(logits, (-1, 64))
-    #for i in range(logits.shape[0]):
     logits = logits / temp
     if training:
         out = softmax(np.reshape(logits, shape), axis=-1)
     else:
         out = np.reshape(logits, shape)
+
     return out
 
 
-def calibrate_temperature(x_val, y_val, mask, temp=tf.Variable(tf.ones(shape=(1,))), epochs=3):
+def calibrate_temperature(x_val, y_val, mask, temp=tf.Variable(tf.ones(shape=(1,))), epochs=3, lr=1e-3):
     history = []
-    optimizer = Adam(learning_rate=1e-3)
+    optimizer = Adam(learning_rate=lr)
 
     def cost(temp, x, y, mask):
         for i in range(0, x.shape[1]):

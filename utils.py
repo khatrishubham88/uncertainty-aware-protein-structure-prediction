@@ -37,131 +37,138 @@ def categorical_crossentropy_with_wrapper(y_true, y_pred, global_batch_size, fro
 
 
 def get_batch_metric(metric, true, predict, mask):
-  batch_acc = []
-  for elem in range(int(true.shape[0])):
-    metric.reset_states()
-    _ = metric.update_state(true[elem], predict[elem], sample_weight=mask[elem])
-    batch_acc.append(metric.result().numpy())
-  return batch_acc
+    batch_acc = []
+    for elem in range(int(true.shape[0])):
+        metric.reset_states()
+        _ = metric.update_state(true[elem], predict[elem], sample_weight=mask[elem])
+        batch_acc.append(metric.result().numpy())
+
+    return batch_acc
+
 
 def mc_accuracy(y_true, mc_mean_y_pred, mask):
-  accs = []
-  m = CategoricalAccuracy()
-  if len(mc_mean_y_pred.shape)==len(y_true.shape)+1:
-    for i in range(mc_mean_y_pred.shape[0]):
-      accs.append(get_batch_metric(m, y_true, mc_mean_y_pred[i], mask))
-  elif len(mc_mean_y_pred.shape)==len(y_true.shape):
-    accs = get_batch_metric(m, y_true, mc_mean_y_pred, mask)
-  else:
-    raise ValueError("Inappropriate shape of predicted sample")
-  del m
-  return accs
+    accs = []
+    m = CategoricalAccuracy()
+    if len(mc_mean_y_pred.shape)==len(y_true.shape)+1:
+        for i in range(mc_mean_y_pred.shape[0]):
+            accs.append(get_batch_metric(m, y_true, mc_mean_y_pred[i], mask))
+    elif len(mc_mean_y_pred.shape)==len(y_true.shape):
+        accs = get_batch_metric(m, y_true, mc_mean_y_pred, mask)
+    else:
+        raise ValueError("Inappropriate shape of predicted sample")
+    del m
+
+    return accs
+
 
 def mc_hist_plot(fname, metric_data, mean_acc=None, title="Accuracy distribution"):
-  plt.figure()
-  plt.title(title)
-  plt.hist(metric_data)
-  if mean_acc is not None:
-    plt.axvline(x=mean_acc, color="b")
-  plt.savefig(fname)
-  # plt.close("all")
+    plt.figure()
+    plt.title(title)
+    plt.hist(metric_data)
+    if mean_acc is not None:
+        plt.axvline(x=mean_acc, color="b")
+    plt.savefig(fname)
+    # plt.close("all")
+
 
 def distance_map_plotter(fname, y_true, y_pred, mask, title="Distancemap Plots"):
-  plt.figure()
-  plt.subplot(131)
-  plt.title("Ground Truth")
-  plt.imshow(y_true, cmap='viridis_r')
-  plt.subplot(132)
-  plt.title("Prediction by model")
-  plt.imshow(y_pred, cmap='viridis_r')
-  plt.subplot(133)
-  plt.title("mask")
-  plt.imshow(mask, cmap='viridis_r')
-  plt.suptitle(title, fontsize=16)
-  plt.tick_params(
-    axis='both',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    direction='inout',
-    left=False,
-    right=False,
-    bottom=False,      # ticks along the bottom edge are off
-    top=False,         # ticks along the top edge are off
-    labelbottom=False,
-    labeltop=False,
-    labelleft=False,
-    labelright=False)
-  plt.axis('off')
-  plt.savefig(fname)
-  # plt.close("all")
+    plt.figure()
+    plt.subplot(131)
+    plt.title("Ground Truth")
+    plt.imshow(y_true, cmap='viridis_r')
+    plt.subplot(132)
+    plt.title("Prediction by model")
+    plt.imshow(y_pred, cmap='viridis_r')
+    plt.subplot(133)
+    plt.title("mask")
+    plt.imshow(mask, cmap='viridis_r')
+    plt.suptitle(title, fontsize=16)
+    plt.tick_params(
+        axis='both',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        direction='inout',
+        left=False,
+        right=False,
+        bottom=False,      # ticks along the bottom edge are off
+        top=False,         # ticks along the top edge are off
+        labelbottom=False,
+        labeltop=False,
+        labelleft=False,
+        labelright=False)
+    plt.axis('off')
+    plt.savefig(fname)
+    # plt.close("all")
+
 
 def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title="Distancemap Plots"):
-  plt.figure(figsize=(10, 10))
-  plt.subplot(221)
-  plt.title("Ground Truth")
-  plt.imshow(y_true, cmap='viridis_r')
-  plt.tick_params(
-    axis='both',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    direction='inout',
-    left=False,
-    right=False,
-    bottom=False,      # ticks along the bottom edge are off
-    top=False,         # ticks along the top edge are off
-    labelbottom=False,
-    labeltop=False,
-    labelleft=False,
-    labelright=False) # labels along the bottom edge are off
-  plt.axis('off')
-  plt.subplot(222)
-  plt.title("Mean Prediction")
-  plt.imshow(y_pred_mean, cmap='viridis_r')
-  plt.tick_params(
-    axis='both',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    direction='inout',
-    left=False,
-    right=False,
-    bottom=False,      # ticks along the bottom edge are off
-    top=False,         # ticks along the top edge are off
-    labelbottom=False,
-    labeltop=False,
-    labelleft=False,
-    labelright=False) # labels along the bottom edge are off
-  plt.axis('off')
-  plt.subplot(223)
-  plt.title("Best Prediction")
-  plt.imshow(y_pred_best, cmap='viridis_r')
-  plt.tick_params(
-    axis='both',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    direction='inout',
-    left=False,
-    right=False,
-    bottom=False,      # ticks along the bottom edge are off
-    top=False,         # ticks along the top edge are off
-    labelbottom=False,
-    labeltop=False,
-    labelleft=False,
-    labelright=False) # labels along the bottom edge are off
-  plt.axis('off')
-  plt.subplot(224)
-  plt.title("mask")
-  plt.imshow(mask, cmap='viridis_r')
-  plt.suptitle(title, fontsize=16)
-  plt.tick_params(
-    axis='both',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    direction='inout',
-    left=False,
-    right=False,
-    bottom=False,      # ticks along the bottom edge are off
-    top=False,         # ticks along the top edge are off
-    labelbottom=False,
-    labeltop=False,
-    labelleft=False,
-    labelright=False) # labels along the bottom edge are off
-  plt.axis('off')
-  plt.savefig(fname)
+    plt.figure(figsize=(10, 10))
+    plt.subplot(221)
+    plt.title("Ground Truth")
+    plt.imshow(y_true, cmap='viridis_r')
+    plt.tick_params(
+        axis='both',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        direction='inout',
+        left=False,
+        right=False,
+        bottom=False,      # ticks along the bottom edge are off
+        top=False,         # ticks along the top edge are off
+        labelbottom=False,
+        labeltop=False,
+        labelleft=False,
+        labelright=False) # labels along the bottom edge are off
+    plt.axis('off')
+    plt.subplot(222)
+    plt.title("Mean Prediction")
+    plt.imshow(y_pred_mean, cmap='viridis_r')
+    plt.tick_params(
+        axis='both',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        direction='inout',
+        left=False,
+        right=False,
+        bottom=False,      # ticks along the bottom edge are off
+        top=False,         # ticks along the top edge are off
+        labelbottom=False,
+        labeltop=False,
+        labelleft=False,
+        labelright=False) # labels along the bottom edge are off
+    plt.axis('off')
+    plt.subplot(223)
+    plt.title("Best Prediction")
+    plt.imshow(y_pred_best, cmap='viridis_r')
+    plt.tick_params(
+        axis='both',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        direction='inout',
+        left=False,
+        right=False,
+        bottom=False,      # ticks along the bottom edge are off
+        top=False,         # ticks along the top edge are off
+        labelbottom=False,
+        labeltop=False,
+        labelleft=False,
+        labelright=False) # labels along the bottom edge are off
+    plt.axis('off')
+    plt.subplot(224)
+    plt.title("mask")
+    plt.imshow(mask, cmap='viridis_r')
+    plt.suptitle(title, fontsize=16)
+    plt.tick_params(
+        axis='both',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        direction='inout',
+        left=False,
+        right=False,
+        bottom=False,      # ticks along the bottom edge are off
+        top=False,         # ticks along the top edge are off
+        labelbottom=False,
+        labeltop=False,
+        labelleft=False,
+        labelright=False) # labels along the bottom edge are off
+    plt.axis('off')
+    plt.savefig(fname)
+
 
 def load_npy_binary(path):
     """Loads in a Numpy binary.
@@ -465,6 +472,7 @@ def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, nu
           total_accuracy = total_accuracy + sample_accuracy
           total_f1 = total_f1 + sample_f1
      cm = confusion_matrix(t_c, p_c)
+
      return total_accuracy/set_size, total_precesion/set_size, total_recall/set_size, total_f1/set_size, cm
 
 

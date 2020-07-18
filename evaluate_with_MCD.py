@@ -51,6 +51,7 @@ def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_
 
     return batches
 
+
 def mc_evaluate(testdata_path, model_path, category, sampling):
     testdata_path = glob.glob(testdata_path + '/*')
     params["modelling_group"] = int(category)
@@ -116,7 +117,7 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
     mc_pred, mean_predict = model.mc_predict(X)
     print(mc_pred.shape)
     print(mean_predict.shape)
-    print(mean_predict[0,0,0,:])
-    entropy =  entropy_func(mean_predict)
+    print(mean_predict[0, 0, 0, :])
+    entropy = entropy_func(mean_predict)
     print('Prediction Entropy with MC:', entropy)
     #for iter in range(mc_pred.shape[0]):

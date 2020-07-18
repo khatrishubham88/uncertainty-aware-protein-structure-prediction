@@ -11,6 +11,7 @@ import tensorflow.keras.backend as K
 from utils import *
 from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, parse_dataset
 from evaluate_with_MCD import mc_evaluate
+from evaluate_with_ts import ts_evaluate
 import sys
 from network_sparse import ResNet, ResNetV2
 import glob
@@ -22,17 +23,17 @@ np.set_printoptions(threshold=np.inf)
 
 sys.setrecursionlimit(10000)
 
-
 params = {
-"crop_size":64,             # this will be the  LxL window size
-"features":"pri-evo",       # this will decide the number of channel, with primary 20, pri-evo 41
-"padding_value":0,          # value to use for padding the sequences, mask is padded by 0 only
-"minimum_bin_val":2,        # starting bin size
-"maximum_bin_val":22,       # largest bin size
-"num_bins":64,              # num of bins to use
-"batch_size":16,             # batch size for training and evaluation
-"modelling_group":5         # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
+    "crop_size": 64,  # this will be the  LxL window size
+    "features": "pri-evo",  # this will decide the number of channel, with primary 20, pri-evo 41
+    "padding_value": 0,  # value to use for padding the sequences, mask is padded by 0 only
+    "minimum_bin_val": 2,  # starting bin size
+    "maximum_bin_val": 22,  # largest bin size
+    "num_bins": 64,  # num of bins to use
+    "batch_size": 16,  # batch size for training and evaluation
+    "modelling_group": 5  # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
 }
+
 
 def entropy_func(y_predict):
     sample_entropy = np.zeros((y_predict.shape[1], y_predict.shape[2]))
@@ -41,32 +42,32 @@ def entropy_func(y_predict):
     for sample in range(y_predict.shape[0]):
         for x in range(y_predict[sample].shape[0]):
             for y in range(y_predict[sample].shape[1]):
-                ent = entropy(y_predict[sample][x,y])
-                sample_entropy[x,y] = ent
+                ent = entropy(y_predict[sample][x, y])
+                sample_entropy[x, y] = ent
 
         sample_mean = np.mean(sample_entropy)
         samples_entropy.append(sample_mean)
     return np.mean(sample_entropy)
 
 
-def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, stride):
+def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, crop_size, stride):
     batches = []
-    for x in range(0,padded_primary.shape[0],stride):
-        for y in range(0,padded_primary.shape[0],stride):
-            primary_2D_crop = padded_primary[x:x+stride, y:y+stride, :]
-            pssm_crop = padded_evol[x:x+stride, y:y+stride, :]
-            pri_evol_crop = tf.concat([primary_2D_crop, pssm_crop],axis=2)
-            tertiary_crop = padded_dist_map[x:x+stride, y:y+stride]
-            tertiary_crop = to_distogram(tertiary_crop, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
-            mask_crop = padded_mask[x:x+stride, y:y+stride]
-
+    for x in range(0, padded_primary.shape[0] - crop_size, stride):
+        for y in range(0, padded_primary.shape[0] - crop_size, stride):
+            primary_2D_crop = padded_primary[x:x + crop_size, y:y + crop_size, :]
+            pssm_crop = padded_evol[x:x + crop_size, y:y + crop_size, :]
+            pri_evol_crop = tf.concat([primary_2D_crop, pssm_crop], axis=2)
+            tertiary_crop = padded_dist_map[x:x + crop_size, y:y + crop_size]
+            tertiary_crop = to_distogram(tertiary_crop, params["minimum_bin_val"], params["maximum_bin_val"],
+                                         params["num_bins"])
+            mask_crop = padded_mask[x:x + crop_size, y:y + crop_size]
             batches.append((pri_evol_crop, tertiary_crop, mask_crop))
 
     return batches
 
 
 def evaluate(testdata_path, model_path, category):
-    #path = "/home/ghalia/Documents/alphafold/pcss20-proteinfolding/minifold_trained/custom_model_weights_epochs_30_batch_size_16"
+    # path = "/home/ghalia/Documents/alphafold/pcss20-proteinfolding/minifold_trained/custom_model_weights_epochs_30_batch_size_16"
     # path = glob.glob("/home/ghalia/Documents/alphafold/casp7/training/50/*")
     # dis = []
     # for primary, evolutionary, tertiary, ter_mask in parse_dataset(path):
@@ -76,6 +77,7 @@ def evaluate(testdata_path, model_path, category):
     #         dis.extend(dist_map.flatten())
     # _ = plt.hist(dis, bins = 8, range = (0,80), rwidth=0.5)
     # plt.savefig("fig2.png")
+
     testdata_path = glob.glob(testdata_path + '/*')
     params["modelling_group"] = int(category)
     print('Setting model architecture...')
@@ -94,13 +96,14 @@ def evaluate(testdata_path, model_path, category):
     #     num_channels = [int(nr) for nr in num_channels.split(',')]
     # else:
     #     num_channels = [int(num_channels)]
-
+    """
     model = ResNetV2(input_channels=41, output_channels=params["num_bins"], num_blocks=[28], num_channels=[64],
-                dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
-                logits=True, mc_dropout=False)
+                     dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
+                     logits=True, mc_dropout=False)
 
     model.load_weights(model_path).expect_partial()
     print('Starting to extract samples from test set...')
+    """
 
     X = []
     y = []
@@ -110,63 +113,50 @@ def evaluate(testdata_path, model_path, category):
             primary_2D = widen_seq(primary)
             pssm = widen_pssm(evolutionary)
             dist_map = calc_pairwise_distances(tertiary)
-            padding_size = math.ceil(primary.shape[0]/params["crop_size"])*params["crop_size"] - primary.shape[0]
+            padding_size = math.ceil(primary.shape[0] / params["crop_size"]) * params["crop_size"] - primary.shape[0]
             padded_primary = pad_feature2(primary_2D, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_evol = pad_feature2(pssm, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_dist_map = pad_feature2(dist_map, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_mask = pad_feature2(ter_mask, params["crop_size"], params["padding_value"], padding_size, 2)
-            batches = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, params["crop_size"])
-            for batch in batches:
-                X.append(batch[0])            # batch[0] of type eager tensor
-                y.append(batch[1])            # batch[1] of type nd-array
-                mask.append(batch[2])         # batch[2] of type eager tensor
+            crops = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask,
+                                           params["crop_size"], 4)
+
+            for crop in crops:
+                X.append(crop[0])  # batch[0] of type eager tensor
+                y.append(crop[1])  # batch[1] of type nd-array
+                mask.append(crop[2])  # batch[2] of type eager tensor
+            if len(X) > 1500:
+                break
 
     print('Finish data extraction..')
     print('Begin model evaluation...')
     """
     Begin model evaluation
     """
+
     X = tf.convert_to_tensor(X)
     y = np.asarray(y)
     mask = tf.convert_to_tensor(mask)
     mask = np.asarray(mask)
 
-    # i = 0
-    # for sample in range(mask.shape[0]):
-    #      if(np.all(mask[sample] == 0)):
-    #          i = i +1
-    #          print(mask[sample])
-    #          plt.figure()
-    #          plt.title("Mask")
-    #          plt.imshow(mask[sample], cmap='viridis_r')
-    #          plt.savefig("/home/ghalia/Documents/alphafold/masks/masks-TBM/"+str(i)+".png")
-    #          plt.close("all")
-
     if X.shape[0] % params['batch_size'] != 0:
         drop_samples = X.shape[0] - ((X.shape[0] // params['batch_size']) * params['batch_size'])
-        X = X[0:X.shape[0]-drop_samples, :, :]
-        mask = mask[0:mask.shape[0]-drop_samples, :, :]
-        y = y[0:y.shape[0]-drop_samples, :, :, :]
-    y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
-#    print(y_predict[0,0,0,:])
-#     #samples_acc, total_acc = accuracy_metric(y, y_predict, mask)
-#     # samples_precision, total_precesion = precision_metric(y, y_predict, mask)
-#     # samples_recall , total_recall = recall_metric(y, y_predict, mask)
-#     # f1 = f_beta_score(total_precesion, total_recall, 1)
-#     #print('Contact map based Accuracy: ', total_acc)
-#     # print('Contact map based Precision: ', total_precesion)
-#     # print('Contact map based Recall: ', total_recall)
-#     # print('Contact map based F1_Score: ', f1)
+        X = X[0:X.shape[0] - drop_samples, :, :]
+        mask = mask[0:mask.shape[0] - drop_samples, :, :]
+        y = y[0:y.shape[0] - drop_samples, :, :, :]
 
+    """
+    y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
     accuracy, precision, recall, f1, cm = distogram_metrics(y, y_predict, mask, params['minimum_bin_val'],
-                                                                        params['maximum_bin_val'], params['num_bins'])
+                                                            params['maximum_bin_val'], params['num_bins'])
     print('Distogram based Accuracy:', accuracy)
     print('Distogram based Precision:', precision)
     print('Distogram based Recall:', recall)
     print('Distogram based F1-score:', f1)
+    """
 
-    #entropy =  entropy_func(y_predict)
-    #print('Prediction Entropy:', entropy)
+    # entropy =  entropy_func(y_predict)
+    # print('Prediction Entropy:', entropy)
 
     # classes = [i+0 for i in range(64)]
     # title = "Confusion matrix"
@@ -199,76 +189,7 @@ def evaluate(testdata_path, model_path, category):
     #         color="white" if cm[i, j] > thresh else "black")
     # fig.tight_layout()
     # fig.savefig("cm.png")
-
-    # Calculate ECE (Expected Calibration Error) prior to Temperature Scaling.
-    model = model_with_logits_output(features='pri-evo', model_weights=model_path, output_channels=params["num_bins"],
-                                     num_blocks=[28],  num_channels=[64], dilation=[1, 2, 4, 8],
-                                     batch_size=params["batch_size"], crop_size=params["crop_size"],
-                                     dropout_rate=0., reg_strength=0.)
-    model.summary()
-    """
-    temperature = np.load("temperatures/temperatures.npy")
-    temperature = np.array([0.9066346, 1., 0.9758303, 1.2377691, 1.1839346, 1.0797653,
-                            1.0976994, 1.1655868, 1.0841253, 1.1079042, 1.0996568, 1.1146455,
-                            1.1172309, 1.1205906, 1.1084177, 1.1130221, 1.115584, 1.0931472,
-                            1.1155368, 1.1294384, 1.1383473, 1.124009,  1.1496164, 1.1306789,
-                            1.139775,  1.1483387, 1.1574283, 1.1721231, 1.1686431, 1.193228,
-                            1.1923347, 1.2182672, 1.2251054, 1.2456652, 1.2496791, 1.2220192,
-                            1.2299304, 1.2686932, 1.2660018, 1.284374,  1.259699,  1.2361847,
-                            1.2286607, 1.2599366, 1.2711262, 1.2410595, 1.2558742, 1.2453178,
-                            1.2388009, 1.2381781, 1.2189326, 1.1825653, 1.2107517, 1.2035905,
-                            1.1514984, 1.1506202, 1.1587858, 1.1638384, 1.1664859, 1.122412,
-                            1.1386058, 1.0751289, 1.0906802, 0.93808156])
-    print(temperature)
-    """
-
-    y_pred = model.predict(X, verbose=1, batch_size=params["batch_size"])
-
-    ground_truth = y
-    mask_original = mask
-    max_confidence, prediction, mask_original, true_labels = preprocess_input_ece(y_pred, ground_truth, mask_original,
-                                                                                  axis=3)
-    accuracies, confidences, bin_lengths = get_bin_info(max_confidence, prediction, true_labels, mask_original,
-                                                        bin_size=0.1)
-
-    print(accuracies)
-    print(confidences)
-    print(bin_lengths)
-
-    gaps = np.abs(np.array(accuracies) - np.array(confidences))
-    ece = expected_calibration_error(max_confidence, prediction, true_labels, mask_original)
-
-    print(gaps)
-    print(ece)
-
-    labels = np.reshape(np.argmax(y, axis=3), (-1))
-    y_pred_train = np.reshape(y_pred, (-1, 64))
-    mask_train = np.reshape(mask, (-1))
-
-    _, T = calibrate_temperature(y_pred_train, labels, mask_train)
-    print(T)
-
-    y_pred_scaled = predict_with_temperature(y_pred, T, training=False)
-    max_confidence_scaled, prediction_scaled, mask, true_labels = preprocess_input_ece(y_pred_scaled, y, mask, axis=3)
-    accuracies_scaled, confidences_scaled, bin_lengths_scaled = get_bin_info(max_confidence_scaled, prediction_scaled,
-                                                                             true_labels, mask, bin_size=0.1)
-
-    print(accuracies_scaled)
-    print(confidences_scaled)
-    print(bin_lengths_scaled)
-
-    gaps_scaled = np.abs(np.array(accuracies_scaled) - np.array(confidences_scaled))
-    ece_scaled = expected_calibration_error(max_confidence_scaled, prediction_scaled, true_labels, mask)
-
-    print(gaps_scaled)
-    print(ece_scaled)
-
-    plt.style.use('ggplot')
-    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(22.5, 4), sharex='col', sharey='row')
-    rel_diagram_sub(accuracies, confidences, ax[0])
-    rel_diagram_sub(accuracies_scaled, confidences_scaled, ax[1])
-    plt.show()
-
+    
 
 if __name__ == "__main__":
     """
@@ -277,17 +198,24 @@ if __name__ == "__main__":
     """
 
     parser = argparse.ArgumentParser(description='TUM Alphafold!')
-    parser.add_argument("--testdata_path",help="path to test set e.x /path/to/test")
-    parser.add_argument("--model_path", help="path to model e.x /path/to/model")
-    parser.add_argument("--category", help="1:TBM, 2:FM, 3:TBM-Hard, 4:TBM/TBM-Hard, 5:all")
-    parser.add_argument("--mc", help="Whether to use the MC Dropout evaluation", action='store_true')
-    parser.add_argument("--sampling", help="number of sampling to do for MC dropout")
+    parser.add_argument("--testdata_path", help="Path to test set e.g. /path/to/test")
+    parser.add_argument("--model_path", help="Path to model e.g. /path/to/model")
+    parser.add_argument("--category", help="1:TBM, 2:FM, 3:TBM-Hard, 4:TBM/TBM-Hard, 5:All")
+    parser.add_argument("--mc", help="Whether to use the MC Dropout for evaluation", action='store_true')
+    parser.add_argument("--sampling", help="Number of sampling to do for MC dropout")
+    parser.add_argument("--ts", help="Whether to use the Temperature Scaling for evaluation", action='store_true')
+    parser.add_argument("--temperature_path", help="Path to test set e.g. /path/to/temperature.npy")
+
     args = parser.parse_args()
     testdata_path = args.testdata_path
     model_path = args.model_path
     category = args.category
     sampling = args.sampling
+    temperature_path = args.temperature_path
+
     if args.mc:
         mc_evaluate(testdata_path, model_path, category, sampling)
+    elif args.ts:
+        ts_evaluate(testdata_path, model_path, temperature_path, category)
     else:
         evaluate(testdata_path, model_path, category)
