@@ -101,6 +101,10 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
         y = y[0:y.shape[0]-drop_samples,:,:,:]
 
     mc_pred, mean_predict = model.mc_predict(X)
-    #entropy =  entropy_func(mean_predict)
-    #print('Prediction Entropy with MC:', entropy)
-    #for iter in range(mean_predict.shape[0]):
+    entropy =  entropy_func(mean_predict)
+    print('Prediction Entropy with MC:', entropy)
+    # for sample in range(mean_predict.shape[0]):
+    #     #s = mean_predict[sample]
+    #     #np.save('sample-output.npy', s)
+    #     print(mean_predict[sample][0,:,:])
+    #     break

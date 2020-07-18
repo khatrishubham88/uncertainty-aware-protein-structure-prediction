@@ -45,18 +45,6 @@ def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_
 def evaluate(testdata_path, model_path, category):
     #path = "/home/ghalia/Documents/alphafold/pcss20-proteinfolding/minifold_trained/custom_model_weights_epochs_30_batch_size_16"
     # path = glob.glob("/home/ghalia/Documents/alphafold/casp7/training/50/*")
-    # testdata_path = glob.glob(testdata_path + '/*')
-    # dis = []
-    # proteins = 0
-    # for primary, evolutionary, tertiary, ter_mask in parse_test_dataset(testdata_path, int(category)):
-    #     if (primary != None):
-    #         dist_map = calc_pairwise_distances(tertiary)
-    #         dist_map = np.asarray(dist_map)
-    #         dis.extend(dist_map.flatten())
-    #         proteins = proteins +1
-    # _ = plt.hist(dis, bins = 12, range = (0,80), rwidth=0.5)
-    # plt.title('All categories, #proteins='+str(proteins))
-    # plt.savefig("All-cat.png")
     testdata_path = glob.glob(testdata_path + '/*')
     params["modelling_group"] = int(category)
     print('Setting model architecture...')
@@ -111,16 +99,7 @@ def evaluate(testdata_path, model_path, category):
     y = np.asarray(y)
     mask = tf.convert_to_tensor(mask)
     mask = np.asarray(mask)
-    # i = 0
-    # for sample in range(mask.shape[0]):
-    #      if(np.all(mask[sample] == 0)):
-    #          i = i +1
-    #          print(mask[sample])
-    #          plt.figure()
-    #          plt.title("Mask")
-    #          plt.imshow(mask[sample], cmap='viridis_r')
-    #          plt.savefig("/home/ghalia/Documents/alphafold/masks/masks-TBM/"+str(i)+".png")
-    #          plt.close("all")
+
     if( X.shape[0] % params['batch_size'] != 0 ):
         drop_samples = X.shape[0] - ((X.shape[0] // params['batch_size']) * params['batch_size'])
         X = X[0:X.shape[0]-drop_samples,:,:]
@@ -144,8 +123,8 @@ def evaluate(testdata_path, model_path, category):
     print('Distogram based Recall:', recall)
     print('Distogram based F1-score:', f1)
 
-    #entropy =  entropy_func(y_predict)
-    #print('Prediction Entropy:', entropy)
+    entropy =  entropy_func(y_predict)
+    print('Prediction Entropy:', entropy)
 
     # classes = [i+0 for i in range(64)]
     # title = "Confusion matrix"
