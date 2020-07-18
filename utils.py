@@ -3,10 +3,12 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 import matplotlib.pyplot as plt
+
 from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_crossentropy
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.keras.metrics import CategoricalAccuracy
-from sklearn.metrics import accuracy_score, confusion_matrix, multilabel_confusion_matrix, precision_score, recall_score, f1_score
+from scipy.stats import entropy
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
 
 
 class CategoricalCrossentropyForDistributed(LossFunctionWrapper):
@@ -410,6 +412,27 @@ def contact_map_from_distancemap(distance_maps):
         contact_maps[batch] = np.where(distance_maps[batch] > 8, 0, 1)  # Distance > 8 yield 0, otherwise 1
 
     return contact_maps
+
+
+def entropy_func(y_predict):
+    """Calculates entropy on a data of shape (#samples, 64, 64, 64)
+        Args:
+            y_predict output of model.predict()
+        Returns:
+            Entropy meaned across one sample and across all samples 
+    """
+    sample_entropy = np.zeros((y_predict.shape[1], y_predict.shape[2]))
+    samples_entropy = []
+    tot_entropy = 0
+    for sample in range(y_predict.shape[0]):
+        for x in range(y_predict[sample].shape[0]):
+            for y in range(y_predict[sample].shape[1]):
+                ent = entropy(y_predict[sample][x,y])
+                sample_entropy[x,y] = ent
+
+        sample_mean = np.mean(sample_entropy)
+        samples_entropy.append(sample_mean)
+    return np.mean(sample_entropy)
 
 
 def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, num_bins):
