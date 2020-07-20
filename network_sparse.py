@@ -380,11 +380,21 @@ class ResNetV2(keras.Model):
             self.mc_sampling = kwargs["mc_sampling"]
         except:
             self.mc_sampling = 100
+        
+        if kwargs.get("class_weights", None) is None:
+            self.cw = tf.ones((self.batch_size, self.crop_size, self.crop_size, self.output_channels))
+        elif isinstance(kwargs.get("class_weights", None), dict):
+            if self.output_channels != len(kwargs["class_weights"]):
+                raise ValueError("Incorrect length of class weights. It should be equal to number of output channels!")
+            # tf.tile(tf.reshape(tf.convert_to_tensor(list([d[i] for i in range(len(d))])), (1,1,1,5)),tf.constant([2,4,4,1]))
+            self.cw = tf.convert_to_tensor(list([kwargs["class_weights"][i] for i in range(len(kwargs["class_weights"]))]), dtype=tf.float32)
+        else:
+            raise ValueError("Class weights must be a dictonary")
         # print(kwargs)
         
     def __new__(cls, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
                  non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4, logits=True, sparse=False, kernel_initializer="he_normal",
-                 kernel_regularizer="l2", mc_dropout=False, mc_sampling=100):
+                 kernel_regularizer="l2", mc_dropout=False, mc_sampling=100, class_weights=None):
         
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
@@ -520,48 +530,21 @@ class ResNetV2(keras.Model):
         # Unpack the data. Its structure depends on your model and
         # on what you pass to `fit()`.
         x, y, sw = data
-        # tf.print(self.layers[0].input_shape)
-        # print("Printing from the train step")
-        # proto_seq = tf.make_tensor_proto(sw)
-        # numpy_seq = tf.make_ndarray(proto_seq)
-        # sh = array_ops.shape(x)
-        # tf.print(sh)
-        #  print(x.numpy()[0])
+        
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)  # Forward pass
             # Compute the loss value
             # (the loss function is configured in `compile()`)
             # Reshape sample weights
-            # new_shape = array_ops.shape(y)
-            
-            # tf.print("\n\ny shape = {}, mask shape = {}\n\n".format(new_shape.numpy(), array_ops.shape(sw).numpy()))
-            # new_shape = new_shape[0:-1]
-            # tf.print(new_shape)
-            # mask = tf.reshape(sw, shape=self._get_mask_shape_fn(y))
             mask = self._reshape_mask_fn(y, sw)
-            # mask = K.variable(mask)
-            # test_loss = self.compiled_loss(y, y_pred)
-            # test_loss = test_loss*mask
-            loss = self.compiled_loss(y, y_pred, mask)
-            # num_mismatch = 0
-            # for i in range(array_ops.shape(test_loss)[0]):
-            #     for j in range(array_ops.shape(test_loss)[1]):
-            #         for k in range(array_ops.shape(test_loss)[2]):
-            #             if tf.math.equal(test_loss, loss).numpy()[i,j,k]:
-            #                 pass
-            #             elif not tf.math.equal(test_loss, loss).numpy()[i,j,k]:
-            #                 num_mismatch +=1 
-            # # print("Total mismatch = {}".format(num_mismatch))
-                            
-            # tf.print("test_loss shape = {}, loss shape = {}".format(array_ops.shape(test_loss), array_ops.shape(loss)))
-            # loss = tf.reduce_sum(self.compiled_loss(y, y_pred)*mask*(1./)
-            # loss = loss*mask
-            # loss = K.sum(K.sum(K.sum(loss)))
-            # tf.print("\n\nloss = {}, factor = {}\n\n".format(tf.reduce_sum(loss).numpy(), (tf.constant(1.)/tf.cast(new_shape[0], dtype=tf.float32)).numpy()))
+            # cw_y_true = tf.math.multiply(y, self.cw)
+            # cw_y_pred = tf.math.multiply(y_pred, self.cw)
+            loss = self.compiled_loss(y*self.cw, y_pred*self.cw, mask)
+            
             loss = tf.reduce_sum(loss)
+           # del cw_y_pred
+           # del cw_y_true
             
-            
-        # print("Forward pass went through")
         # Compute gradients
         trainable_vars = self.trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
@@ -569,8 +552,6 @@ class ResNetV2(keras.Model):
         self.optimizer.apply_gradients(zip(gradients, trainable_vars))
         # Update metrics (includes the metric that tracks the loss)
         self.compiled_metrics.update_state(y, y_pred, mask)
-        # tf.print("\n\nCompiled metric = {}\n\n".format(self.compiled_metrics))
-        # tf.print("\n\nTraining Output = {}\n\n".format({m.name: m.result() for m in self.metrics}))
         # Return a dict mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}
     

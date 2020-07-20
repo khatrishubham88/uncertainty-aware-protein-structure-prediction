@@ -214,6 +214,7 @@ class DataGenerator(object):
     def make_validation_idx_buffer(self, repeats, raw_data_size):
         # number of times to repeat the data
         big_data_size = 0
+        max_trial = 20
         for c in range(repeats):
             protein_count = 0
             # iterate over raw data of size 96
@@ -236,10 +237,12 @@ class DataGenerator(object):
                             y = np.random.randint(0, primary.shape[0] - self.crop_size)
                             if c > 0:
                                 retry = True
-                                while retry:
+                                trial = 0
+                                while retry and trial<max_trial:
                                     if [x,y] in self.val_idx[raw_data_size+i::big_data_size]:
                                         x = np.random.randint(0, primary.shape[0] - self.crop_size)
                                         y = np.random.randint(0, primary.shape[0] - self.crop_size)
+                                        trial += 1
                                     else:
                                         retry = False
                                 self.val_idx.append([x,y])

@@ -96,6 +96,38 @@ def distance_map_plotter(fname, y_true, y_pred, mask, title="Distancemap Plots")
   plt.savefig(fname)
   # plt.close("all")
 
+def get_class_weights(dataset, num_steps, channels):
+  cw={}
+  count = 0
+  batch_sum = tf.zeros(channels)
+  # find total occurance for each class
+  for i, (_, y,_) in enumerate(dataset):
+    batch_sum += tf.math.reduce_sum(y, axis=list(range(len(y.shape)-1)))
+    count += np.prod(y.shape[:-1])
+    if i == num_steps:
+      break
+  
+  # check non zero minimum occurance to deal with case of 0 occurences of some class
+  nnz_mask = tf.math.greater(batch_sum, 0).numpy()
+  zero_mask = tf.math.logical_not(nnz_mask)
+  nnz_min_val =  tf.math.reduce_min(batch_sum[nnz_mask]).numpy()
+  batch_sum = tf.where(zero_mask, x=nnz_min_val, y=batch_sum) # replacing 0 with minimum non 0 occurence
+  # increment the count to account for correction and have sum of probability = 1 condition
+  count += int((tf.math.reduce_sum(tf.cast(zero_mask, dtype=tf.int32)).numpy())*nnz_min_val)
+  
+  # biased probablities
+  batch_sum /= count
+  # sanctity check
+  if float(tf.math.reduce_sum(batch_sum).numpy()) - 1.0 > 1e-12:
+    raise ValueError("Sum of probability is not 1.0 check the input arrays!")
+  
+  weights = (tf.math.reciprocal(batch_sum)*(1.0/float(batch_sum.shape[0]))).numpy()
+  
+  for i in range(channels):
+    cw[i] = float(weights[i])
+  
+  return cw
+
 def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title="Distancemap Plots"):
   plt.figure(figsize=(10, 10))
   plt.subplot(221)
