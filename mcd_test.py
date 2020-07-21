@@ -120,10 +120,11 @@ def main():
     else:
         raise ValueError("Wrong Architecture Selected!")
 
-    model = ResNetV2(input_channels=inp_channel, output_channels=params["num_bins"], num_blocks=num_blocks, num_channels=num_channels,
-                dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
-                dropout_rate=0.15, reg_strength=1e-4, logits=False, sparse=False, kernel_initializer="he_normal",
-                 kernel_regularizer="l2", mc_dropout=True, mc_sampling=5)
+    model = ResNetV2(input_channels=inp_channel, output_channels=params["num_bins"], num_blocks=num_blocks,
+                     num_channels=num_channels, dilation=[1, 2, 4, 8], batch_size=params["batch_size"],
+                     crop_size=params["crop_size"], dropout_rate=0.15, reg_strength=1e-4, logits=False, sparse=False,
+                     kernel_initializer="he_normal", kernel_regularizer="l2", mc_dropout=True,
+                     mc_sampling=5)
     
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.006),
                   loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]))
@@ -186,7 +187,6 @@ def main():
                 arr2 = arr2.reshape(arr2.shape[0],-1)
                 np.savetxt("mcd.csv", arr2)
                 
-
 
 if __name__=="__main__":
     main()
