@@ -8,7 +8,6 @@ from evaluate_with_MCD import mc_evaluate
 import sys
 from network_sparse import ResNet, ResNetV2
 import glob
-from scipy.stats import entropy
 import argparse
 np.set_printoptions(threshold=np.inf)
 
@@ -106,15 +105,15 @@ def evaluate(testdata_path, model_path, category):
         mask = mask[0:mask.shape[0]-drop_samples,:,:]
         y = y[0:y.shape[0]-drop_samples,:,:,:]
     y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
-#    print(y_predict[0,0,0,:])
-#     #samples_acc, total_acc = accuracy_metric(y, y_predict, mask)
-#     # samples_precision, total_precesion = precision_metric(y, y_predict, mask)
-#     # samples_recall , total_recall = recall_metric(y, y_predict, mask)
-#     # f1 = f_beta_score(total_precesion, total_recall, 1)
-#     #print('Contact map based Accuracy: ', total_acc)
-#     # print('Contact map based Precision: ', total_precesion)
-#     # print('Contact map based Recall: ', total_recall)
-#     # print('Contact map based F1_Score: ', f1)
+
+    samples_acc, total_acc = accuracy_metric(y, y_predict, mask)
+    samples_precision, total_precesion = precision_metric(y, y_predict, mask)
+    samples_recall , total_recall = recall_metric(y, y_predict, mask)
+    f1 = f_beta_score(total_precesion, total_recall, 1)
+    print('Contact map based Accuracy: ', total_acc)
+    print('Contact map based Precision: ', total_precesion)
+    print('Contact map based Recall: ', total_recall)
+    print('Contact map based F1_Score: ', f1)
 
     accuracy, precision, recall, f1, cm = distogram_metrics(y, y_predict, mask, params['minimum_bin_val'],
                                                                         params['maximum_bin_val'], params['num_bins'])
