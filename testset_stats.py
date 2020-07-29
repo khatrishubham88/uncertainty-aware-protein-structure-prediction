@@ -22,9 +22,6 @@ if __name__=="__main__":
             dist_map = np.asarray(dist_map)
             dis1.extend(dist_map.flatten())
             proteins = proteins +1
-            if(proteins==1000):
-                break
-    print(proteins)
     # for primary, evolutionary, tertiary, ter_mask in parse_test_dataset(testdata_path2, 3):
     #     if (primary != None):
     #         dist_map = calc_pairwise_distances(tertiary)

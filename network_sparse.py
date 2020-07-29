@@ -383,8 +383,8 @@ class ResNetV2(keras.Model):
         # print(kwargs)
 
     def __new__(cls, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
-                 non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4, logits=True, sparse=False, kernel_initializer="he_normal",
-                 kernel_regularizer="l2", mc_dropout=False, mc_sampling=100):
+                non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4, logits=True, sparse=False,
+                kernel_initializer="he_normal", kernel_regularizer="l2", mc_dropout=False, mc_sampling=100):
 
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
@@ -635,11 +635,10 @@ class ResNetV2(keras.Model):
 
         return layers
 
-
     def mc_predict(self, X):
         mc_predictions = []
         for _ in tqdm.tqdm(range(self.mc_sampling)):
-            y_p = self.predict(X, batch_size = self.batch_size)
+            y_p = self.predict(X, batch_size=self.batch_size)
             mc_predictions.append(y_p)
         # mean = tf.math.reduce_mean(tf.convert_to_tensor(mc_predictions, dtype=tf.float32), axis
         mc_predictions = tf.convert_to_tensor(mc_predictions, dtype=tf.float32)
