@@ -9,7 +9,7 @@ from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_cros
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.keras.metrics import CategoricalAccuracy
 from scipy.stats import entropy
-from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, confusion_matrix, multilabel_confusion_matrix, precision_score, recall_score, f1_score
 
 
 class CategoricalCrossentropyForDistributed(LossFunctionWrapper):
@@ -433,8 +433,27 @@ def contact_map_from_distancemap(distance_maps):
         Numpy array containing batch of corresponding contact maps.
     """
     contact_maps = np.zeros(shape=(distance_maps.shape[0], distance_maps.shape[1], distance_maps.shape[2]))
-    for batch in range(distance_maps.shape[0]):
-        contact_maps[batch] = np.where(distance_maps[batch] > 8, 0, 1)  # Distance > 8 yield 0, otherwise 1
+    for sample in range(distance_maps.shape[0]):
+        contact_maps[sample] = np.where(distance_maps[sample] > 8, 0, 1)  # Distance > 8 yield 0, otherwise 1
+
+    return contact_maps
+
+
+def contact_map_from_distogram(y_predict):
+    """If distance between two amino acids is smaller than 8 Angstrom, set to contact
+    otherwise not in contact:
+      Args:
+        y_predict: output of model.predict() of shape [#samples, 64, 64, 64].
+      Returns:
+        Numpy array containing batch of corresponding contact maps.
+    """
+    contact_maps = np.zeros(shape=(y_predict.shape[0], y_predict.shape[1], y_predict.shape[2]))
+    distance_maps = output_to_distancemaps(y_predict, 2, 22, 64)
+    for sample in range(y_predict.shape[0]):
+        for x in range(y_predict.shape[1]):
+            for y in range(y_predict.shape[2]):
+                density = np.sum(y_predict[sample][x,y][0:19])
+                contact_maps[sample][x,y] = 1 if density > 0.5 else 0
 
     return contact_maps
 
@@ -444,7 +463,7 @@ def entropy_func(y_predict):
         Args:
             y_predict output of model.predict()
         Returns:
-            Entropy meaned across one sample and across all samples 
+            Entropy meaned across one sample and across all samples
     """
     sample_entropy = np.zeros((y_predict.shape[1], y_predict.shape[2]))
     samples_entropy = []
@@ -474,8 +493,6 @@ def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, nu
       Returns:
         List with precisions for each prediction in batch and mean precision for batch of predictions.
       """
-    #  print('y_true shape:', y_true.shape)
-    #  print('y_pred shape:', y_pred.shape)
      distance_maps_pred = output_to_distancemaps(y_pred, minimum_bin_val, maximum_bin_val, num_bins)
      total_precesion = 0
      total_recall = 0
@@ -563,9 +580,9 @@ def accuracy_metric(y_true, y_pred, mask):
       Returns:
         List with accuracies for each prediction in batch and mean accuracy for batch of predictions.
       """
-     distance_maps_predicted = output_to_distancemaps(y_pred, 2, 22, 64)
+     #distance_maps_predicted = output_to_distancemaps(y_pred, 2, 22, 64)
      distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
-     contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
+     contact_maps_predicted = contact_map_from_distogram(y_pred)
      contact_maps_true = contact_map_from_distancemap(distance_maps_true)
      set_size =  contact_maps_true.shape[0]
      total_accu = 0
@@ -592,9 +609,9 @@ def precision_metric(y_true, y_pred, mask):
       Returns:
         List with precisions for each prediction in batch and mean precision for batch of predictions.
       """
-     distance_maps_predicted = output_to_distancemaps(y_pred, 2, 22, 64)
+     #distance_maps_predicted = output_to_distancemaps(y_pred, 2, 22, 64)
      distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
-     contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
+     contact_maps_predicted = contact_map_from_distogram(y_pred)
      contact_maps_true = contact_map_from_distancemap(distance_maps_true)
      total_prec = 0
      precisions = []
@@ -626,9 +643,9 @@ def recall_metric(y_true, y_pred, mask):
       Returns:
         List with recalls for each prediction in batch and mean recall for batch of predictions.
     """
-    distance_maps_predicted = output_to_distancemaps(y_pred, 2, 22, 64)
+    #distance_maps_predicted = output_to_distancemaps(y_pred, 2, 22, 64)
     distance_maps_true = output_to_distancemaps(y_true, 2, 22, 64)
-    contact_maps_predicted = contact_map_from_distancemap(distance_maps_predicted)
+    contact_maps_predicted = contact_map_from_distogram(y_pred)
     contact_maps_true = contact_map_from_distancemap(distance_maps_true)
     total_rec = 0
     recalls = []

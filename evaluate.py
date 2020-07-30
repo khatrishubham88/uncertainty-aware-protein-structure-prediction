@@ -115,9 +115,19 @@ def evaluate(testdata_path, model_path, category):
 
     if X.shape[0] % params['batch_size'] != 0:
         drop_samples = X.shape[0] - ((X.shape[0] // params['batch_size']) * params['batch_size'])
-        X = X[0:X.shape[0] - drop_samples, :, :]
-        mask = mask[0:mask.shape[0] - drop_samples, :, :]
-        y = y[0:y.shape[0] - drop_samples, :, :, :]
+        X = X[0:X.shape[0]-drop_samples,:,:]
+        mask = mask[0:mask.shape[0]-drop_samples,:,:]
+        y = y[0:y.shape[0]-drop_samples,:,:,:]
+    y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
+
+    samples_acc, total_acc = accuracy_metric(y, y_predict, mask)
+    samples_precision, total_precesion = precision_metric(y, y_predict, mask)
+    samples_recall , total_recall = recall_metric(y, y_predict, mask)
+    f1 = f_beta_score(total_precesion, total_recall, 1)
+    print('Contact map based Accuracy: ', total_acc)
+    print('Contact map based Precision: ', total_precesion)
+    print('Contact map based Recall: ', total_recall)
+    print('Contact map based F1_Score: ', f1)
 
     y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
     accuracy, precision, recall, f1, cm = distogram_metrics(y, y_predict, mask, params['minimum_bin_val'],
@@ -171,7 +181,7 @@ def evaluate(testdata_path, model_path, category):
     #         color="white" if cm[i, j] > thresh else "black")
     # fig.tight_layout()
     # fig.savefig("cm.png")
-    
+
 
 if __name__ == "__main__":
     """
