@@ -635,7 +635,7 @@ class ResNetV2(keras.Model):
 
         return layers
 
-    def mc_predict(self, X):
+    def mc_predict_with_sample(self, X):
         mc_predictions = []
         for _ in tqdm.tqdm(range(self.mc_sampling)):
             y_p = self.predict(X, batch_size=self.batch_size)
@@ -645,3 +645,16 @@ class ResNetV2(keras.Model):
         mean = tf.math.reduce_mean(mc_predictions, axis=0)
         # print(mean.shape)
         return mc_predictions, mean
+    
+    def mc_predict_without_sample(self, X):
+        mean = self.predict(X, batch_size=self.batch_size)
+        for _ in tqdm.tqdm(range(self.mc_sampling - 1)):
+            mean += self.predict(X, batch_size=self.batch_size)
+        mean /= self.mc_sampling
+        return mean
+
+    def mc_predict(self, X, return_all=False):
+        if return_all:
+            return self.mc_predict_with_sample(X)
+        else:
+            return None, self.mc_predict_without_sample(X)

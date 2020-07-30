@@ -12,6 +12,28 @@ from tensorflow.python.ops import array_ops
 import threading
 
 
+class DataTestDataGenerator(object):
+    def __init__(self, path:list, crop_size=64, category="all", minimum_bin_val=2,
+                 maximum_bin_val=22, num_bins=64,
+                 batch_size=64):
+        self.path = path
+        self.crop_size = crop_size
+        if category == "all":
+            self.category = 5
+        elif category == "TBM":
+            self.category = 1
+        elif category == "TBM-Hard":
+            self.category = 3
+        elif category == "FM":
+            self.category = 2
+        elif category == "TBM/Hard":
+            self.category = 4
+        self.minimum_bin_val = minimum_bin_val
+        self.maximum_bin_val = maximum_bin_val
+        self.num_bins = num_bins
+        self.batch_size = batch_size
+        self.raw_dataset = tf.data.TFRecordDataset(self.path)
+
 class DataGenerator(object):
     'Generates data for Keras'
     def __init__(self, path: list, val_path: list=[None], crop_size=64,

@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 import matplotlib.pyplot as plt
+import warnings
 
 from tensorflow.python.keras.losses import LossFunctionWrapper, categorical_crossentropy
 from tensorflow.python.keras.utils import losses_utils
@@ -231,12 +232,36 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
     bins = np.linspace(min_angstrom, max_angstrom, num_bins)
     if len(output.shape) == 4:
         values = np.argmax(output, axis=3)
+        # print(values)
         distance_maps = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
         for batch in range(distance_maps.shape[0]):
           distance_maps[batch] = bins[values[batch]]
     else:
         values = np.argmax(output, axis=2)
         distance_maps = np.zeros(shape=(output.shape[0], output.shape[1]))
+        distance_maps = bins[values]
+
+    return distance_maps
+
+def output_to_distogram(output, min_angstrom, max_angstrom, num_bins):
+    """Given a batch of outputs, creates the distance maps ready for plotting.
+      Args:
+        output: Batch of predictions by the network either as tensor or Numpy array.
+        min_angstrom: Lower boundary of distance range in Angstrom.
+        max_angstrom: Upper boundary of distance range in Angstrom.
+        num_bins: Number of bins for discretization of the distance range.
+      Returns:
+        A Numpy array with consisting of predicted distances for each residual pair in the crop.
+    """
+    bins = np.linspace(min_angstrom, max_angstrom, num_bins)
+    if len(output.shape) == 4:
+        values = np.argmax(output, axis=3) # 3D
+        distogram = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2], output.shape[3]))
+        for batch in range(distogram.shape[0]):
+          distogram[batch] = bins[values[batch]]
+    else:
+        values = np.argmax(output, axis=2)
+        distogram = np.zeros(shape=(output.shape[0], output.shape[1], output.shape[2]))
         distance_maps = bins[values]
 
     return distance_maps
@@ -428,14 +453,18 @@ def entropy_func(y_predict):
         for x in range(y_predict[sample].shape[0]):
             for y in range(y_predict[sample].shape[1]):
                 ent = entropy(y_predict[sample][x,y])
-                sample_entropy[x,y] = ent
+                if np.isfinite(ent):
+                    sample_entropy[x,y] = ent
+                else:
+                    warnings.warn("Infinite Entropy")
+                    sample_entropy[x,y] = 0    
 
         sample_mean = np.mean(sample_entropy)
         samples_entropy.append(sample_mean)
     return np.mean(sample_entropy)
 
 
-def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, num_bins):
+def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, num_bins, single_sample = False):
      """Computes the individual precisions and mean precision for a batch of predictions
      based on the predicted dostograms.
       Args:
@@ -445,8 +474,8 @@ def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, nu
       Returns:
         List with precisions for each prediction in batch and mean precision for batch of predictions.
       """
-     print('y_true shape:', y_true.shape)
-     print('y_pred shape:', y_pred.shape)
+    #  print('y_true shape:', y_true.shape)
+    #  print('y_pred shape:', y_pred.shape)
      distance_maps_pred = output_to_distancemaps(y_pred, minimum_bin_val, maximum_bin_val, num_bins)
      total_precesion = 0
      total_recall = 0
@@ -462,38 +491,63 @@ def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, nu
      t_c = []
      p_c = []
      classes = [str(i) for i in range(num_bins)]   ##[0-->63]
-     for sample in range(y_true.shape[0]):
-          y_pred_disto = to_distogram(distance_maps_pred[sample], minimum_bin_val, maximum_bin_val, num_bins)
-          for x in range(y_true[sample].shape[0]):
-              for y in range(y_true[sample].shape[1]):
-                  bin_index_true = np.argmax(y_true[sample][x, y])
-                  bin_index_pred = np.argmax(y_pred_disto[x, y])
-                  y_true_class = classes[bin_index_true]
-                  y_pred_class = classes[bin_index_pred]
-                  true_classes[x,y] = y_true_class
-                  pred_classes[x,y] = y_pred_class
-          if (np.count_nonzero(mask[sample]) == 0 ):
-              set_size  = set_size - 1
-              continue
-          sample_precision = precision_score(true_classes.flatten(), pred_classes.flatten(),
-                                           average = 'weighted', sample_weight= mask[sample].flatten())
-          sample_recall = recall_score(true_classes.flatten(), pred_classes.flatten(),
-                                              average = 'weighted', sample_weight= mask[sample].flatten())
-          sample_f1 = f1_score(true_classes.flatten(), pred_classes.flatten(),
-                                              average = 'weighted', sample_weight= mask[sample].flatten())
-          sample_accuracy = accuracy_score(true_classes.flatten(), pred_classes.flatten(), normalize = True,
-                                                sample_weight= mask[sample].flatten())
-          t_c.extend(true_classes.flatten())
-          p_c.extend(pred_classes.flatten())
+     if not single_sample:
+        for sample in range(y_true.shape[0]):
+            y_pred_disto = to_distogram(distance_maps_pred[sample], minimum_bin_val, maximum_bin_val, num_bins)
+            for x in range(y_true[sample].shape[0]):
+                for y in range(y_true[sample].shape[1]):
+                    bin_index_true = np.argmax(y_true[sample][x, y])
+                    bin_index_pred = np.argmax(y_pred_disto[x, y])
+                    y_true_class = classes[bin_index_true]
+                    y_pred_class = classes[bin_index_pred]
+                    true_classes[x,y] = y_true_class
+                    pred_classes[x,y] = y_pred_class
+            if (np.count_nonzero(mask[sample]) == 0 ):
+                set_size  = set_size - 1
+                continue
+            sample_precision = precision_score(true_classes.flatten(), pred_classes.flatten(),
+                                            average = 'weighted', sample_weight= mask[sample].flatten())
+            sample_recall = recall_score(true_classes.flatten(), pred_classes.flatten(),
+                                                average = 'weighted', sample_weight= mask[sample].flatten())
+            sample_f1 = f1_score(true_classes.flatten(), pred_classes.flatten(),
+                                                average = 'weighted', sample_weight= mask[sample].flatten())
+            sample_accuracy = accuracy_score(true_classes.flatten(), pred_classes.flatten(), normalize = True,
+                                                    sample_weight= mask[sample].flatten())
+            t_c.extend(true_classes.flatten())
+            p_c.extend(pred_classes.flatten())
 
-          samples_prec.append(sample_precision)
-          samples_recall.append(sample_recall)
-          samples_accuracy.append(sample_accuracy)
-          samples_f1.append(sample_f1)
-          total_recall = total_recall + sample_recall
-          total_precesion = total_precesion + sample_precision
-          total_accuracy = total_accuracy + sample_accuracy
-          total_f1 = total_f1 + sample_f1
+            samples_prec.append(sample_precision)
+            samples_recall.append(sample_recall)
+            samples_accuracy.append(sample_accuracy)
+            samples_f1.append(sample_f1)
+            total_recall = total_recall + sample_recall
+            total_precesion = total_precesion + sample_precision
+            total_accuracy = total_accuracy + sample_accuracy
+            total_f1 = total_f1 + sample_f1
+     else:
+         y_pred_disto = to_distogram(distance_maps_pred, minimum_bin_val, maximum_bin_val, num_bins)
+         for x in range(y_true.shape[0]):
+             for y in range(y_true.shape[1]):
+                 bin_index_true = np.argmax(y_true[x, y])
+                 bin_index_pred = np.argmax(y_pred_disto[x, y])
+                 y_true_class = classes[bin_index_true]
+                 y_pred_class = classes[bin_index_pred]
+                 true_classes[x,y] = y_true_class
+                 pred_classes[x,y] = y_pred_class
+         if (np.count_nonzero(mask) == 0 ):
+             return 0,0,0,0, None
+             
+         total_recall = recall_score(true_classes.flatten(), pred_classes.flatten(),
+                                                average = 'weighted', sample_weight= mask.flatten())
+         total_precesion = precision_score(true_classes.flatten(), pred_classes.flatten(),
+                                            average = 'weighted', sample_weight= mask.flatten())
+         sample_recall = recall_score(true_classes.flatten(), pred_classes.flatten(),
+                                            average = 'weighted', sample_weight= mask.flatten())
+         total_f1 = f1_score(true_classes.flatten(), pred_classes.flatten(),
+                                            average = 'weighted', sample_weight= mask.flatten())
+         total_accuracy = accuracy_score(true_classes.flatten(), pred_classes.flatten(), normalize = True,
+                                                sample_weight= mask.flatten())
+         set_size = 1
      cm = confusion_matrix(t_c, p_c)
 
      return total_accuracy/set_size, total_precesion/set_size, total_recall/set_size, total_f1/set_size, cm
@@ -586,7 +640,10 @@ def recall_metric(y_true, y_pred, mask):
         false_neg = (((contact_maps_true[sample].flatten() != contact_maps_predicted[sample].flatten())
                       & (contact_maps_true[sample].flatten() == 1)
                       & (contact_maps_predicted[sample].flatten() == 0)) * mask[sample].flatten()).sum()
-        sample_rec = true_pos / (true_pos + false_neg)
+        if true_pos + false_neg > 0:
+            sample_rec = true_pos / (true_pos + false_neg)
+        else:
+            sample_rec = 0.0
         if (math.isnan(sample_rec)):
             set_size = set_size - 1
             continue
@@ -605,8 +662,10 @@ def f_beta_score(precision, recall, beta=1):
       Returns:
         FBeta score as integer or float.
     """
-
-    return ((1 + beta**2) * precision * recall) / (beta**2 * precision + recall)
+    if (beta**2 * precision + recall) !=0:
+        return ((1 + beta**2) * precision * recall) / (beta**2 * precision + recall)
+    else:
+        return 0
 
 
 def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold):

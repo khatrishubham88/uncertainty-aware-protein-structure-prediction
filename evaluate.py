@@ -11,7 +11,7 @@ import tensorflow.keras.backend as K
 from utils import *
 from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, parse_dataset
 from evaluate_with_MCD import mc_evaluate
-from evaluate_with_ts import ts_evaluate
+# from evaluate_with_ts import ts_evaluate
 import sys
 from network_sparse import ResNet, ResNetV2
 import glob
@@ -29,7 +29,7 @@ params = {
     "minimum_bin_val": 2,  # starting bin size
     "maximum_bin_val": 22,  # largest bin size
     "num_bins": 64,  # num of bins to use
-    "batch_size": 16,  # batch size for training and evaluation
+    "batch_size": 8,  # batch size for training and evaluation
     "modelling_group": 5  # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
 }
 
@@ -75,7 +75,8 @@ def evaluate(testdata_path, model_path, category):
 
     model = ResNetV2(input_channels=41, output_channels=params["num_bins"], num_blocks=[28], num_channels=[64],
                      dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
-                     logits=True, mc_dropout=False)
+                     non_linearity='elu', dropout_rate=0.1, reg_strength=1e-4, logits=True, sparse=False,
+                     kernel_initializer="he_normal", kernel_regularizer="l2", mc_dropout=False)
 
     model.load_weights(model_path).expect_partial()
     print('Starting to extract samples from test set...')
@@ -94,15 +95,12 @@ def evaluate(testdata_path, model_path, category):
             padded_evol = pad_feature2(pssm, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_dist_map = pad_feature2(dist_map, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_mask = pad_feature2(ter_mask, params["crop_size"], params["padding_value"], padding_size, 2)
-            crops = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask,
-                                           params["crop_size"], 4)
+            crops = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, params["crop_size"], params["crop_size"])
 
             for crop in crops:
                 X.append(crop[0])  # batch[0] of type eager tensor
                 y.append(crop[1])  # batch[1] of type nd-array
                 mask.append(crop[2])  # batch[2] of type eager tensor
-            if len(X) > 1500:
-                break
 
     print('Finish data extraction..')
     print('Begin model evaluation...')
@@ -132,6 +130,15 @@ def evaluate(testdata_path, model_path, category):
     entropy =  entropy_func(y_predict)
     print('Prediction Entropy:', entropy)
 
+    _, cm_accuracy = accuracy_metric(y, y_predict, mask)
+    _, cm_precision = precision_metric(y, y_predict, mask)
+    _, cm_recall = recall_metric(y, y_predict, mask)
+    cm_fscore = f_beta_score(cm_precision, cm_recall, beta=1)
+
+    print("Contact Map Accuracy: " + str(cm_accuracy))
+    print("Contact Map Precision: " + str(cm_precision))
+    print("Contact Map Recall: " + str(cm_recall))
+    print("Contact Map F1-Score: " + str(cm_fscore))
 
     # classes = [i+0 for i in range(64)]
     # title = "Confusion matrix"
@@ -180,6 +187,7 @@ if __name__ == "__main__":
     parser.add_argument("--sampling", help="Number of sampling to do for MC dropout")
     parser.add_argument("--ts", help="Whether to use the Temperature Scaling for evaluation", action='store_true')
     parser.add_argument("--temperature_path", help="Path to test set e.g. /path/to/temperature.npy")
+    parser.add_argument("--plot", help="Whether to plot evaluation set", action='store_true')
 
     args = parser.parse_args()
     testdata_path = args.testdata_path
