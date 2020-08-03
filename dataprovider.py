@@ -12,6 +12,28 @@ from tensorflow.python.ops import array_ops
 import threading
 
 
+class DataTestDataGenerator(object):
+    def __init__(self, path:list, crop_size=64, category="all", minimum_bin_val=2,
+                 maximum_bin_val=22, num_bins=64,
+                 batch_size=64):
+        self.path = path
+        self.crop_size = crop_size
+        if category == "all":
+            self.category = 5
+        elif category == "TBM":
+            self.category = 1
+        elif category == "TBM-Hard":
+            self.category = 3
+        elif category == "FM":
+            self.category = 2
+        elif category == "TBM/Hard":
+            self.category = 4
+        self.minimum_bin_val = minimum_bin_val
+        self.maximum_bin_val = maximum_bin_val
+        self.num_bins = num_bins
+        self.batch_size = batch_size
+        self.raw_dataset = tf.data.TFRecordDataset(self.path)
+
 class DataGenerator(object):
     'Generates data for Keras'
     def __init__(self, path: list, val_path: list=[None], crop_size=64,
@@ -97,7 +119,19 @@ class DataGenerator(object):
                 self.validation_raw_dataset = self.validation_raw_dataset.repeat(num_val_repeats)
             else:
                 self.validation_datasize = self.fetch_validation_datasize()
-            self.idx_iterator = np.arange(len(self.val_mask))
+            # self.idx_iterator = np.arange(len(self.val_mask))
+            number_of_samples = int(np.floor(self.validation_datasize / self.validation_batch_size))*self.validation_batch_size
+            count = 0
+            idx = 0
+            for i in range(len(self.val_mask)):
+                if self.val_mask[i]:
+                    count +=1
+                idx += 1
+                if count == number_of_samples:
+                    break
+            # print("samples = {}, count = {}, idx = {}".format(number_of_samples, count, idx))
+            self.idx_iterator = np.arange(idx + 1)
+            self.approx_val_sample_per_epoch = idx
             if self.val_shuffle:
                 self.validation_raw_dataset = self.validation_raw_dataset.shuffle(self.val_shuffle_buffer_size)
 
@@ -124,8 +158,9 @@ class DataGenerator(object):
         raise NotImplementedError('No implemented yet.')
 
     def __iter__(self):
-        self.construct_feeder()
-        self.iterator = self.datafeeder.__iter__()
+        if self.iterator is None:
+            self.construct_feeder()
+            self.iterator = self.datafeeder.__iter__()
         return self
 
     def __next__(self):
@@ -279,10 +314,17 @@ class DataGenerator(object):
             yield transformed_batch # has values (primary, tertiary, tertiary mask)
 
     def val_transformation_generator(self):
+        counter = 0
         for data in self.validation_raw_dataset:
             primary, evolutionary, tertiary, ter_mask = parse_val_tfexample(data, self.validation_thinning_threshold)
             if all(ret is not None for ret in [primary, evolutionary, tertiary, ter_mask]):
-                c = self.pop_idx()
+                c = counter
+                if counter < self.approx_val_sample_per_epoch:                
+                    with self.lock:
+                        counter += 1
+                else:
+                    with self.lock:
+                        counter = 0 
                 if self.val_mask[c]:
                     transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
                                                                         features=self.features,
@@ -298,6 +340,7 @@ class DataGenerator(object):
                     yield transformed_batch
                 else:
                     continue
+                
             else:
                 continue
 
