@@ -112,7 +112,7 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
     print('Distogram based Recall:', recall)
     print('Distogram based F1-score:', f1)
     
-    entropy =  entropy_func(mean_predict)
+    entropy = entropy_func(mean_predict)
 
 
     print('Prediction Entropy with MC:', entropy)
