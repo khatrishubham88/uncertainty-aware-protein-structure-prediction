@@ -15,7 +15,7 @@ def learn_temperature(traindata_path, valdata_path, model_path, epochs, iteratio
     num_channels = [64]
     dilation = [1, 2, 4, 8]
     dropout_rate = 0.1
-    reg_strength = 0.
+    reg_strength = 0.0001
     kernel_init = "he_normal"
     weights_path = model_path
 

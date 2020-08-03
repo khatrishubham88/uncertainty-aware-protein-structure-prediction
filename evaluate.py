@@ -8,13 +8,12 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
-from utils import *
-from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, parse_dataset
 from evaluate_with_MCD import mc_evaluate
-#from evaluate_with_ts import ts_evaluate
-import sys
+from evaluate_with_ts import ts_evaluate
 from network_sparse import ResNet, ResNetV2
-import glob
+from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, parse_dataset
+from utils import *
+
 
 from utils_temperature_scaling import *
 
@@ -128,14 +127,14 @@ def evaluate(testdata_path, model_path, category):
     print('Contact map based Recall: ', total_recall)
     print('Contact map based F1_Score: ', f1)
 
-    accuracy, precision, recall, f1, cm = distogram_metrics(y, output, mask, params['minimum_bin_val'],
+    accuracy, precision, recall, f1, cm = distogram_metrics(y, y_predict, mask, params['minimum_bin_val'],
                                                             params['maximum_bin_val'], params['num_bins'])
     print('Distogram based Accuracy:', accuracy)
     print('Distogram based Precision:', precision)
     print('Distogram based Recall:', recall)
     print('Distogram based F1-score:', f1)
 
-    entropy = entropy_func(output)
+    entropy = entropy_func(y_predict)
     print('Prediction Entropy:', entropy)
     
     """
