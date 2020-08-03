@@ -1,7 +1,6 @@
 from tensorflow.keras import Input
 from tensorflow import keras
 from tensorflow.keras.layers import Activation, Add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
-from trainable_model import CustomModel
 from tensorflow.keras.regularizers import l2, l1, l1_l2
 from tensorflow.python.ops import array_ops
 import tensorflow as tf

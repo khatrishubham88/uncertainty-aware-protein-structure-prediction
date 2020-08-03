@@ -103,10 +103,10 @@ def evaluate(testdata_path, model_path, category):
 
     print('Finish data extraction..')
     print('Begin model evaluation...')
+
     """
     Begin model evaluation
     """
-
     X = tf.convert_to_tensor(X)
     y = np.asarray(y)
     mask = tf.convert_to_tensor(mask)
@@ -114,9 +114,9 @@ def evaluate(testdata_path, model_path, category):
 
     if X.shape[0] % params['batch_size'] != 0:
         drop_samples = X.shape[0] - ((X.shape[0] // params['batch_size']) * params['batch_size'])
-        X = X[0:X.shape[0]-drop_samples,:,:]
-        mask = mask[0:mask.shape[0]-drop_samples,:,:]
-        y = y[0:y.shape[0]-drop_samples,:,:,:]
+        X = X[0:X.shape[0] - drop_samples, :, :]
+        mask = mask[0:mask.shape[0] - drop_samples, :, :]
+        y = y[0:y.shape[0] - drop_samples, :, :, :]
     y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
 
     samples_acc, total_acc = accuracy_metric(y, y_predict, mask)
