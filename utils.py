@@ -427,7 +427,7 @@ def contact_map_from_distogram(y_predict):
     for sample in range(y_predict.shape[0]):
         for x in range(y_predict.shape[1]):
             for y in range(y_predict.shape[2]):
-                density = np.sum(y_predict[sample][x,y][0:19])
+                density = np.sum(y_predict[sample][x,y][0:18])
                 contact_maps[sample][x,y] = 1 if density > 0.5 else 0
 
     return contact_maps

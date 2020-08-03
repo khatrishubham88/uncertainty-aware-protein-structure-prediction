@@ -11,7 +11,7 @@ import tensorflow.keras.backend as K
 from utils import *
 from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, parse_dataset
 from evaluate_with_MCD import mc_evaluate
-from evaluate_with_ts import ts_evaluate
+#from evaluate_with_ts import ts_evaluate
 import sys
 from network_sparse import ResNet, ResNetV2
 import glob
@@ -101,8 +101,6 @@ def evaluate(testdata_path, model_path, category):
                 X.append(crop[0])  # batch[0] of type eager tensor
                 y.append(crop[1])  # batch[1] of type nd-array
                 mask.append(crop[2])  # batch[2] of type eager tensor
-            if len(X) > 1500:
-                break
 
     print('Finish data extraction..')
     print('Begin model evaluation...')
@@ -131,7 +129,6 @@ def evaluate(testdata_path, model_path, category):
     print('Contact map based Recall: ', total_recall)
     print('Contact map based F1_Score: ', f1)
 
-    y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
     accuracy, precision, recall, f1, cm = distogram_metrics(y, y_predict, mask, params['minimum_bin_val'],
                                                             params['maximum_bin_val'], params['num_bins'])
     print('Distogram based Accuracy:', accuracy)
