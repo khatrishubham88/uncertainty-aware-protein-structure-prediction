@@ -29,7 +29,7 @@ params = {
     "minimum_bin_val": 2,  # starting bin size
     "maximum_bin_val": 22,  # largest bin size
     "num_bins": 64,  # num of bins to use
-    "batch_size": 16,  # batch size for training and evaluation
+    "batch_size": 8,  # batch size for training and evaluation
     "modelling_group": 5  # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
 }
 
@@ -75,17 +75,17 @@ def evaluate(testdata_path, model_path, category):
 
     model = ResNetV2(input_channels=41, output_channels=params["num_bins"], num_blocks=[28], num_channels=[64],
                      dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
-                     logits=True, mc_dropout=False)
+                     non_linearity='elu', dropout_rate=0.1, reg_strength=1e-4, logits=True, sparse=False,
+                     kernel_initializer="he_normal", kernel_regularizer="l2", mc_dropout=False)
 
     model.load_weights(model_path).expect_partial()
     print('Starting to extract samples from test set...')
-
 
     X = []
     y = []
     mask = []
     for primary, evolutionary, tertiary, ter_mask in parse_test_dataset(testdata_path, params["modelling_group"]):
-        if (primary != None):
+        if primary is not None:
             primary_2D = widen_seq(primary)
             pssm = widen_pssm(evolutionary)
             dist_map = calc_pairwise_distances(tertiary)
@@ -95,8 +95,7 @@ def evaluate(testdata_path, model_path, category):
             padded_dist_map = pad_feature2(dist_map, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_mask = pad_feature2(ter_mask, params["crop_size"], params["padding_value"], padding_size, 2)
             crops = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask,
-                                           params["crop_size"], 4)
-
+                                           params["crop_size"], params["crop_size"])
             for crop in crops:
                 X.append(crop[0])  # batch[0] of type eager tensor
                 y.append(crop[1])  # batch[1] of type nd-array
@@ -129,54 +128,54 @@ def evaluate(testdata_path, model_path, category):
     print('Contact map based Recall: ', total_recall)
     print('Contact map based F1_Score: ', f1)
 
-    accuracy, precision, recall, f1, cm = distogram_metrics(y, y_predict, mask, params['minimum_bin_val'],
+    accuracy, precision, recall, f1, cm = distogram_metrics(y, output, mask, params['minimum_bin_val'],
                                                             params['maximum_bin_val'], params['num_bins'])
     print('Distogram based Accuracy:', accuracy)
     print('Distogram based Precision:', precision)
     print('Distogram based Recall:', recall)
     print('Distogram based F1-score:', f1)
 
-    entropy =  entropy_func(y_predict)
+    entropy = entropy_func(output)
     print('Prediction Entropy:', entropy)
-
-
-    # classes = [i+0 for i in range(64)]
-    # title = "Confusion matrix"
-    # cmap = "coolwarm"
-    # normalize = False
-    # fig, ax = plt.subplots()
-    # fig.set_size_inches(34, 34)
-    # im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
-    # ax.figure.colorbar(im, ax=ax)
-    # # We want to show all ticks...
-    # ax.set(xticks=np.arange(cm.shape[1]),
-    # yticks=np.arange(cm.shape[0]),
-    # # ... and label them with the respective list entries
-    # xticklabels=classes, yticklabels=classes,
-    # title=title,
-    # ylabel='True label',
-    # xlabel='Predicted label')
-    #
-    # # Rotate the tick labels and set their alignment.
-    # plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-    # rotation_mode="anchor")
-    #
-    # # Loop over data dimensions and create text annotations.
-    # fmt = '.2f' if normalize else 'd'
-    # thresh = cm.max() / 2.
-    # for i in range(cm.shape[0]):
-    #     for j in range(cm.shape[1]):
-    #         ax.text(j, i, format(cm[i, j], fmt),
-    #         ha="center", va="center",
-    #         color="white" if cm[i, j] > thresh else "black")
-    # fig.tight_layout()
-    # fig.savefig("cm.png")
+    
+    """
+    classes = [i + 0 for i in range(64)]
+    title = "Confusion matrix"
+    cmap = "coolwarm"
+    normalize = False
+    fig, ax = plt.subplots()
+    fig.set_size_inches(34, 34)
+    im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
+    ax.figure.colorbar(im, ax=ax)
+    # We want to show all ticks...
+    ax.set(xticks=np.arange(cm.shape[1]),
+           yticks=np.arange(cm.shape[0]),
+           # ... and label them with the respective list entries
+           xticklabels=classes, yticklabels=classes,
+           title=title,
+           ylabel='True label',
+           xlabel='Predicted label')
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+    # Loop over data dimensions and create text annotations.
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, int(cm[i, j]),
+                    ha="center", va="center",
+                    color="white" if cm[i, j] > thresh else "black")
+    fig.tight_layout()
+    fig.savefig("cm.png")
+    """
 
 
 if __name__ == "__main__":
     """
     Example execution:
-    python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/minifold_trained/custom_model_weights_epochs_30_batch_size_16" --category 5
+        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/minifold_trained/custom_model_weights_epochs_30_batch_size_16" --category 5
+
+        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/clipped_weights_epoch24/chkpnt" --category 2 --ts --temperature_path "P:/proteinfolding_alphafold/temperatures/temperatures_clipped.npy"
     """
 
     parser = argparse.ArgumentParser(description='TUM Alphafold!')
@@ -187,6 +186,7 @@ if __name__ == "__main__":
     parser.add_argument("--sampling", help="Number of sampling to do for MC dropout")
     parser.add_argument("--ts", help="Whether to use the Temperature Scaling for evaluation", action='store_true')
     parser.add_argument("--temperature_path", help="Path to test set e.g. /path/to/temperature.npy")
+    parser.add_argument("--plot", help="Whether to plot evaluation set", action='store_true')
 
     args = parser.parse_args()
     testdata_path = args.testdata_path

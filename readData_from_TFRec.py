@@ -271,7 +271,7 @@ def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index
       Returns:
         Tuple consisting of crops of primary input, ground truth and mask.
     """
-    if(features == 'primary'):
+    if features == 'primary':
         if primary.shape[0] >= crop_size:
             primary = widen_seq(primary)
             primary_crop = primary[index[0]:index[0]+crop_size, index[1]:index[1]+crop_size, :]
@@ -287,7 +287,7 @@ def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index
             tertiary_mask = pad_feature2(tertiary_mask, crop_size, 0, padding_size, 2)
             return (primary, distogram, tertiary_mask)
     else:
-        if(features=='pri-evo'):
+        if features == 'pri-evo':
             if primary.shape[0] >= crop_size:
                 primary = widen_seq(primary)
                 evol = widen_pssm(evolutionary)
