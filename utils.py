@@ -468,6 +468,7 @@ def entropy_func(y_predict):
     sample_entropy = np.zeros((y_predict.shape[1], y_predict.shape[2]))
     samples_entropy = []
     tot_entropy = 0
+    print(y_predict.shape)
     for sample in range(y_predict.shape[0]):
         for x in range(y_predict[sample].shape[0]):
             for y in range(y_predict[sample].shape[1]):

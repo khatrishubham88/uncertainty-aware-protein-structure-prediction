@@ -1,7 +1,7 @@
 from tensorflow.keras import Input
 from tensorflow import keras
 from tensorflow.keras.layers import Activation, Add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
-from trainable_model import CustomModel
+from trainable_model_sparse import CustomModel
 from tensorflow.keras.regularizers import l2, l1, l1_l2
 from tensorflow.python.ops import array_ops
 import tensorflow as tf
@@ -18,10 +18,10 @@ class ResNet(keras.Model):
                  non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4, logits=True, sparse=False, kernel_initializer="he_normal",
                  kernel_regularizer="l2"):
         super(ResNet, self).__init__(name='AlphaFold_Distance_Prediction_Model')
-
+        
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
-
+        
         self.input_channels = input_channels
         self.output_channels = output_channels
         self.crop_size = crop_size
@@ -59,9 +59,9 @@ class ResNet(keras.Model):
         print("\nconv_up_down_layers: \n {}\n".format(self.conv_up_down_layers))
         print("\nlast_layer: \n {}\n".format(self.last_layer))
         print("\nsoftmax_layer: \n {}\n".format(self.softmax_layer))
-
+        
         # time.sleep(120)
-
+        
         self.build((self.batch_size, self.crop_size, self.crop_size, self.input_channels))
 
     def model_init(self):
@@ -83,7 +83,7 @@ class ResNet(keras.Model):
         self.conv_up_down_layers = []
         self.identity_add_layer = []
         # self.conv_down_layers = []
-
+        
         # Concatenate sets containing variable number of ResNet blocks
         for idx, num_set_blocks in enumerate(self.num_blocks):
             resnet_block_list = []
@@ -100,11 +100,11 @@ class ResNet(keras.Model):
                 #     x = layer(x)
                 # x = Add(name='add_' + str(idx) + '_' + str(block_num))([x, identity])
                 block_identity_add.append(Add(name='add_' + str(idx) + '_' + str(block_num)))
-
+                
                 if 0.0 < self.dropout_rate < 1.0 and ((idx is not len(self.num_blocks)-1) or (block_num is not num_set_blocks-1)):
                     # x = Dropout(rate=self.dropout_rate, name='dropout_' + str(idx) + '_' + str(block_num))(x)
                     block_dropout_list.append(Dropout(rate=self.dropout_rate, name='dropout_' + str(idx) + '_' + str(block_num)))
-
+                
                 if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
                     if self.num_channels[idx] > self.num_channels[idx + 1]:
                         # x = Conv2D(filters=self.num_channels[idx + 1], kernel_size=1, strides=1, padding='same',
@@ -113,8 +113,8 @@ class ResNet(keras.Model):
                         block_channel_adjustment.append(Conv2D(filters=self.num_channels[idx + 1], kernel_size=1, strides=1, padding='same',
                                    kernel_initializer=self.kernel_initializer, kernel_regularizer=self.kernel_regularizer(self.reg_strength),
                                    data_format='channels_last', name='downscale_' + str(idx) + 'to' + str(idx + 1)))
-
-
+                        
+                        
                     elif self.num_channels[idx] < self.num_channels[idx + 1]:
                         # x = Conv2DTranspose(filters=self.num_channels[idx + 1], kernel_size=1, strides=1,
                         #                     kernel_initializer=self.kernel_initializer, kernel_regularizer=self.kernel_regularizer(self.reg_strength),
@@ -124,7 +124,7 @@ class ResNet(keras.Model):
                                             kernel_initializer=self.kernel_initializer, kernel_regularizer=self.kernel_regularizer(self.reg_strength),
                                             data_format='channels_last',
                                             padding='same', name='upscale_' + str(idx) + 'to' + str(idx + 1)))
-
+                        
                 elif ((block_num + 1) == num_set_blocks) and ((idx + 1) == len(self.num_blocks)):
                     if self.num_channels[idx] > self.output_channels:
                         # x = self.make_layer()[0](x)
@@ -135,7 +135,7 @@ class ResNet(keras.Model):
             self.resnet_stack.append(resnet_block_list)
             self.dropout_layers.append(block_dropout_list)
             self.conv_up_down_layers.append(block_channel_adjustment)
-            self.identity_add_layer.append(block_identity_add)
+            self.identity_add_layer.append(block_identity_add)    
 
         if self.logits:
             # out = Softmax(axis=3, name='softmax_layer')(x)
@@ -152,7 +152,7 @@ class ResNet(keras.Model):
             output = layer(output)
         tf.print("\n\nFirst layer done!\n\n")
         print("\n\nFirst layer done!\n\n")
-
+        
         for idx, num_set_blocks in enumerate(self.num_blocks):
             block_resnet_stack_idx = 0
             block_dropout_layers_idx = 0
@@ -172,7 +172,7 @@ class ResNet(keras.Model):
                     tf.print("\n\n Doing pass for Dropout: \n {}".format(self.dropout_layers[idx][block_dropout_layers_idx]))
                     print("\n\n Doing pass for Dropout: \n {}".format(self.dropout_layers[idx][block_dropout_layers_idx]))
                     block_dropout_layers_idx += 1
-
+                    
                 if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
                     if (self.num_channels[idx] > self.num_channels[idx + 1]) or (self.num_channels[idx] < self.num_channels[idx + 1]):
                         output = self.conv_up_down_layers[idx][block_conv_up_down_layers_idx](output)
@@ -180,12 +180,12 @@ class ResNet(keras.Model):
                 elif ((block_num + 1) == num_set_blocks) and ((idx + 1) == len(self.num_blocks)):
                     if (self.num_channels[idx] > self.output_channels) or (self.num_channels[idx] < self.output_channels):
                         output = self.last_layer(output)
-
+                
         if self.logits:
             output = self.softmax_layer(output)
         return output
-
-
+        
+    
     def make_layer(self, first='False'):
         """Generates a block of layers consisting of convolutional or transposed convolutional layers
         and BatchNorm layers.
@@ -217,13 +217,13 @@ class ResNet(keras.Model):
                                      data_format='channels_last', name='upscale_conv2d'))
 
         return layers
-
+    
     def _reshape_mask_fn(self, y_true, sample_weight):
         new_shape = array_ops.shape(y_true)
         new_shape = new_shape[0:-1]
         mask = tf.reshape(sample_weight, shape=new_shape)
         return mask
-
+    
     def train_step(self, data):
         # Unpack the data. Its structure depends on your model and
         # on what you pass to `fit()`.
@@ -241,7 +241,7 @@ class ResNet(keras.Model):
             # (the loss function is configured in `compile()`)
             # Reshape sample weights
             # new_shape = array_ops.shape(y)
-
+            
             # tf.print("\n\ny shape = {}, mask shape = {}\n\n".format(new_shape.numpy(), array_ops.shape(sw).numpy()))
             # new_shape = new_shape[0:-1]
             # tf.print(new_shape)
@@ -258,17 +258,17 @@ class ResNet(keras.Model):
             #             if tf.math.equal(test_loss, loss).numpy()[i,j,k]:
             #                 pass
             #             elif not tf.math.equal(test_loss, loss).numpy()[i,j,k]:
-            #                 num_mismatch +=1
+            #                 num_mismatch +=1 
             # # print("Total mismatch = {}".format(num_mismatch))
-
+                            
             # tf.print("test_loss shape = {}, loss shape = {}".format(array_ops.shape(test_loss), array_ops.shape(loss)))
             # loss = tf.reduce_sum(self.compiled_loss(y, y_pred)*mask*(1./)
             # loss = loss*mask
             # loss = K.sum(K.sum(K.sum(loss)))
             # tf.print("\n\nloss = {}, factor = {}\n\n".format(tf.reduce_sum(loss).numpy(), (tf.constant(1.)/tf.cast(new_shape[0], dtype=tf.float32)).numpy()))
             loss = tf.reduce_sum(loss)
-
-
+            
+            
         # print("Forward pass went through")
         # Compute gradients
         trainable_vars = self.trainable_variables
@@ -281,7 +281,7 @@ class ResNet(keras.Model):
         # tf.print("\n\nTraining Output = {}\n\n".format({m.name: m.result() for m in self.metrics}))
         # Return a dict mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}
-
+    
     def test_step(self, data):
         # Unpack the data
         x, y, sw = data
@@ -341,8 +341,8 @@ class ResNet(keras.Model):
                                       name='conv_up_' + str(set_block) + '_' + str(block_num)))
 
         return layers
-
-
+    
+    
 class ResNetV2(keras.Model):
     """Two-dimensional dilated convolutional neural network with variable number of residual
     block groups. Each residual block group consists of four ResNet blocks.
@@ -370,8 +370,8 @@ class ResNetV2(keras.Model):
     last_layer = None
     softmax_layer = None
     mc_dropout = None
-
-
+    
+    
     def __init__(self, *args, **kwargs):
         super().__init__(self._inputs, self._outputs, name='AlphaFold_Distance_Prediction_Model')
         self.dropout_mean = None
@@ -380,15 +380,25 @@ class ResNetV2(keras.Model):
             self.mc_sampling = kwargs["mc_sampling"]
         except:
             self.mc_sampling = 100
+        
+        if kwargs.get("class_weights", None) is None:
+            self.cw = tf.ones((self.batch_size, self.crop_size, self.crop_size, self.output_channels))
+        elif isinstance(kwargs.get("class_weights", None), dict):
+            if self.output_channels != len(kwargs["class_weights"]):
+                raise ValueError("Incorrect length of class weights. It should be equal to number of output channels!")
+            # tf.tile(tf.reshape(tf.convert_to_tensor(list([d[i] for i in range(len(d))])), (1,1,1,5)),tf.constant([2,4,4,1]))
+            self.cw = tf.convert_to_tensor(list([kwargs["class_weights"][i] for i in range(len(kwargs["class_weights"]))]), dtype=tf.float32)
+        else:
+            raise ValueError("Class weights must be a dictonary")
         # print(kwargs)
-
+        
     def __new__(cls, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
-                non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4, logits=True, sparse=False,
-                kernel_initializer="he_normal", kernel_regularizer="l2", mc_dropout=False, mc_sampling=100):
-
+                 non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4, logits=True, sparse=False, kernel_initializer="he_normal",
+                 kernel_regularizer="l2", mc_dropout=False, mc_sampling=100, class_weights=None):
+        
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
-
+        
         cls.input_channels = input_channels
         cls.output_channels = output_channels
         cls.crop_size = crop_size
@@ -476,7 +486,7 @@ class ResNetV2(keras.Model):
         else:
             out = x
         return inputs, out
-
+        
     @classmethod
     def make_layer(cls, first='False'):
         """Generates a block of layers consisting of convolutional or transposed convolutional layers
@@ -509,59 +519,32 @@ class ResNetV2(keras.Model):
                                      data_format='channels_last', name='upscale_conv2d'))
 
         return layers
-
+    
     def _reshape_mask_fn(self, y_true, sample_weight):
         new_shape = array_ops.shape(y_true)
         new_shape = new_shape[0:-1]
         mask = tf.reshape(sample_weight, shape=new_shape)
         return mask
-
+    
     def train_step(self, data):
         # Unpack the data. Its structure depends on your model and
         # on what you pass to `fit()`.
         x, y, sw = data
-        # tf.print(self.layers[0].input_shape)
-        # print("Printing from the train step")
-        # proto_seq = tf.make_tensor_proto(sw)
-        # numpy_seq = tf.make_ndarray(proto_seq)
-        # sh = array_ops.shape(x)
-        # tf.print(sh)
-        #  print(x.numpy()[0])
+        
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)  # Forward pass
             # Compute the loss value
             # (the loss function is configured in `compile()`)
             # Reshape sample weights
-            # new_shape = array_ops.shape(y)
-
-            # tf.print("\n\ny shape = {}, mask shape = {}\n\n".format(new_shape.numpy(), array_ops.shape(sw).numpy()))
-            # new_shape = new_shape[0:-1]
-            # tf.print(new_shape)
-            # mask = tf.reshape(sw, shape=self._get_mask_shape_fn(y))
             mask = self._reshape_mask_fn(y, sw)
-            # mask = K.variable(mask)
-            # test_loss = self.compiled_loss(y, y_pred)
-            # test_loss = test_loss*mask
-            loss = self.compiled_loss(y, y_pred, mask)
-            # num_mismatch = 0
-            # for i in range(array_ops.shape(test_loss)[0]):
-            #     for j in range(array_ops.shape(test_loss)[1]):
-            #         for k in range(array_ops.shape(test_loss)[2]):
-            #             if tf.math.equal(test_loss, loss).numpy()[i,j,k]:
-            #                 pass
-            #             elif not tf.math.equal(test_loss, loss).numpy()[i,j,k]:
-            #                 num_mismatch +=1
-            # # print("Total mismatch = {}".format(num_mismatch))
-
-            # tf.print("test_loss shape = {}, loss shape = {}".format(array_ops.shape(test_loss), array_ops.shape(loss)))
-            # loss = tf.reduce_sum(self.compiled_loss(y, y_pred)*mask*(1./)
-            # loss = loss*mask
-            # loss = K.sum(K.sum(K.sum(loss)))
-            # tf.print("\n\nloss = {}, factor = {}\n\n".format(tf.reduce_sum(loss).numpy(), (tf.constant(1.)/tf.cast(new_shape[0], dtype=tf.float32)).numpy()))
+            # cw_y_true = tf.math.multiply(y, self.cw)
+            # cw_y_pred = tf.math.multiply(y_pred, self.cw)
+            loss = self.compiled_loss(y*self.cw, y_pred*self.cw, mask)
+            
             loss = tf.reduce_sum(loss)
-
-
-        # print("Forward pass went through")
+           # del cw_y_pred
+           # del cw_y_true
+            
         # Compute gradients
         trainable_vars = self.trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
@@ -569,11 +552,9 @@ class ResNetV2(keras.Model):
         self.optimizer.apply_gradients(zip(gradients, trainable_vars))
         # Update metrics (includes the metric that tracks the loss)
         self.compiled_metrics.update_state(y, y_pred, mask)
-        # tf.print("\n\nCompiled metric = {}\n\n".format(self.compiled_metrics))
-        # tf.print("\n\nTraining Output = {}\n\n".format({m.name: m.result() for m in self.metrics}))
         # Return a dict mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}
-
+    
     def test_step(self, data):
         # Unpack the data
         x, y, sw = data
@@ -634,27 +615,14 @@ class ResNetV2(keras.Model):
                                       name='conv_up_' + str(set_block) + '_' + str(block_num)))
 
         return layers
-
-    def mc_predict_with_sample(self, X):
+    
+    def mc_predict(self, X, min_val, max_val, num_bin):
         mc_predictions = []
         for _ in tqdm.tqdm(range(self.mc_sampling)):
-            y_p = self.predict(X, batch_size=self.batch_size)
+            y_p = self.predict(X)
             mc_predictions.append(y_p)
         # mean = tf.math.reduce_mean(tf.convert_to_tensor(mc_predictions, dtype=tf.float32), axis
         mc_predictions = tf.convert_to_tensor(mc_predictions, dtype=tf.float32)
         mean = tf.math.reduce_mean(mc_predictions, axis=0)
         # print(mean.shape)
         return mc_predictions, mean
-    
-    def mc_predict_without_sample(self, X):
-        mean = self.predict(X, batch_size=self.batch_size)
-        for _ in tqdm.tqdm(range(self.mc_sampling - 1)):
-            mean += self.predict(X, batch_size=self.batch_size)
-        mean /= self.mc_sampling
-        return mean
-
-    def mc_predict(self, X, return_all=False):
-        if return_all:
-            return self.mc_predict_with_sample(X)
-        else:
-            return None, self.mc_predict_without_sample(X)
