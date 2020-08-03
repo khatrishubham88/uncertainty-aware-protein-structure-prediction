@@ -11,7 +11,7 @@ import tensorflow.keras.backend as K
 from utils import *
 from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, parse_dataset
 from evaluate_with_MCD import mc_evaluate
-#from evaluate_with_ts import ts_evaluate
+from evaluate_with_ts import ts_evaluate
 import sys
 from network_sparse import ResNet, ResNetV2
 import glob
@@ -137,7 +137,7 @@ def evaluate(testdata_path, model_path, category):
 
     entropy = entropy_func(output)
     print('Prediction Entropy:', entropy)
-    
+
     """
     classes = [i + 0 for i in range(64)]
     title = "Confusion matrix"
