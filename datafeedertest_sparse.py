@@ -124,10 +124,11 @@ def main():
     else:
         raise ValueError("Wrong Architecture Selected!")
 
-    model = ResNetV2(input_channels=inp_channel, output_channels=params["num_bins"], num_blocks=num_blocks, num_channels=num_channels,
-                dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
-                dropout_rate=0.1, reg_strength=1e-4, logits=True, sparse=False, kernel_initializer="he_normal",
-                 kernel_regularizer="l2", mc_dropout=False, class_weights=cws)
+    model = ResNetV2(input_channels=inp_channel, output_channels=params["num_bins"], num_blocks=num_blocks,
+                     num_channels=num_channels,
+                     dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
+                     dropout_rate=0.1, reg_strength=1e-4, logits=True, sparse=False, kernel_initializer="he_normal",
+                     kernel_regularizer="l2", mc_dropout=False, class_weights=cws)
     # model = nn.model()
     print(type(model))
     

@@ -73,13 +73,19 @@ def evaluate(testdata_path, model_path, category):
     #     num_channels = [int(nr) for nr in num_channels.split(',')]
     # else:
     #     num_channels = [int(num_channels)]
-
+    """
     model = ResNetV2(input_channels=41, output_channels=params["num_bins"], num_blocks=[28], num_channels=[64],
                      dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
                      non_linearity='elu', dropout_rate=0.1, reg_strength=1e-4, logits=True, sparse=False,
                      kernel_initializer="he_normal", kernel_regularizer="l2", mc_dropout=False)
+    """
+    model_logits = model_with_logits_output(inp_channel=41, output_channels=params["num_bins"],
+                                            num_blocks=[28], num_channels=[64], dilation=[1, 2, 4, 8],
+                                            batch_size=params["batch_size"], crop_size=params["crop_size"],
+                                            dropout_rate=0.1, reg_strength=1e-4, kernel_initializer="he_normal")
 
-    model.load_weights(model_path).expect_partial()
+    # model.load_weights(model_path).expect_partial()
+    model_logits.load_weights(model_path).expect_partial()
     print('Starting to extract samples from test set...')
 
     X = []
@@ -108,6 +114,7 @@ def evaluate(testdata_path, model_path, category):
     """
     Begin model evaluation
     """
+
     X = tf.convert_to_tensor(X)
     y = np.asarray(y)
     mask = tf.convert_to_tensor(mask)
@@ -118,11 +125,18 @@ def evaluate(testdata_path, model_path, category):
         X = X[0:X.shape[0] - drop_samples, :, :]
         mask = mask[0:mask.shape[0] - drop_samples, :, :]
         y = y[0:y.shape[0] - drop_samples, :, :, :]
-    y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
+
+    ground_truth = y
+    mask_original = mask
+    y_predict_logits = model_logits.predict(X, verbose=1, batch_size=params["batch_size"])
+    max_confidence, prediction, mask_original, true_labels = preprocess_input_ece(y_predict_logits, ground_truth,
+                                                                                  mask_original, axis=3)
+    ece = expected_calibration_error(max_confidence, prediction, true_labels, mask_original)
+    y_predict = softmax(y_predict_logits, axis=-1)
 
     samples_acc, total_acc = accuracy_metric(y, y_predict, mask)
     samples_precision, total_precesion = precision_metric(y, y_predict, mask)
-    samples_recall , total_recall = recall_metric(y, y_predict, mask)
+    samples_recall, total_recall = recall_metric(y, y_predict, mask)
     f1 = f_beta_score(total_precesion, total_recall, 1)
     print('Contact map based Accuracy: ', total_acc)
     print('Contact map based Precision: ', total_precesion)
@@ -138,6 +152,7 @@ def evaluate(testdata_path, model_path, category):
 
     entropy = entropy_func(y_predict)
     print('Prediction Entropy:', entropy)
+    print('ECE: ', ece)
 
     """
     classes = [i + 0 for i in range(64)]

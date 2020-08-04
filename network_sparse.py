@@ -82,7 +82,7 @@ class ResNet(keras.Model):
         self.conv_up_down_layers = []
         self.identity_add_layer = []
         # self.conv_down_layers = []
-        
+
         # Concatenate sets containing variable number of ResNet blocks
         for idx, num_set_blocks in enumerate(self.num_blocks):
             resnet_block_list = []

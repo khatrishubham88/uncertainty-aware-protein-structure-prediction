@@ -80,8 +80,7 @@ def ts_evaluate(testdata_path, model_path, temperature_path, category):
     """
     Begin model evaluation
     """
-    
-    np.random.shuffle(X)
+
     X = tf.convert_to_tensor(X)
     y = np.asarray(y)
     mask = tf.convert_to_tensor(mask)
@@ -100,6 +99,7 @@ def ts_evaluate(testdata_path, model_path, temperature_path, category):
                                      dropout_rate=dropout_rate, reg_strength=reg_strength,
                                      kernel_initializer=kernel_init)
     model.load_weights(model_path).expect_partial()
+
     temperature = np.load(temperature_path)
     print("Applied Temperature: " + str(temperature))
 

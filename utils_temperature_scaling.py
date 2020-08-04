@@ -235,6 +235,7 @@ def calibrate_temperature(y_pred, y_true, mask, temp=tf.Variable(tf.ones(shape=(
                     network (not scaled).
             y_true: Flattened Numpy array containing ground truth.
             mask: Flattened Numpy array containing masking values.
+            temp: Initial temperature as TensorFlow variable.
             epochs: Number of optimization steps per batch.
             lr: Learning rate.
           Returns:
