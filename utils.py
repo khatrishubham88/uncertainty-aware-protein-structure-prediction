@@ -243,6 +243,7 @@ def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
 
     return distance_maps
 
+
 def output_to_distogram(output, min_angstrom, max_angstrom, num_bins):
     """Given a batch of outputs, creates the distance maps ready for plotting.
       Args:
@@ -468,7 +469,6 @@ def entropy_func(y_predict):
     sample_entropy = np.zeros((y_predict.shape[1], y_predict.shape[2]))
     samples_entropy = []
     tot_entropy = 0
-    print(y_predict.shape)
     for sample in range(y_predict.shape[0]):
         for x in range(y_predict[sample].shape[0]):
             for y in range(y_predict[sample].shape[1]):
@@ -477,10 +477,11 @@ def entropy_func(y_predict):
                     sample_entropy[x,y] = ent
                 else:
                     warnings.warn("Infinite Entropy")
-                    sample_entropy[x,y] = 0    
+                    sample_entropy[x,y] = 0
 
         sample_mean = np.mean(sample_entropy)
         samples_entropy.append(sample_mean)
+
     return np.mean(sample_entropy)
 
 
@@ -554,7 +555,7 @@ def distogram_metrics(y_true, y_pred, mask, minimum_bin_val, maximum_bin_val, nu
                  pred_classes[x,y] = y_pred_class
          if (np.count_nonzero(mask) == 0 ):
              return 0,0,0,0, None
-             
+
          total_recall = recall_score(true_classes.flatten(), pred_classes.flatten(),
                                                 average = 'weighted', sample_weight= mask.flatten())
          total_precesion = precision_score(true_classes.flatten(), pred_classes.flatten(),
@@ -658,6 +659,7 @@ def recall_metric(y_true, y_pred, mask):
         false_neg = (((contact_maps_true[sample].flatten() != contact_maps_predicted[sample].flatten())
                       & (contact_maps_true[sample].flatten() == 1)
                       & (contact_maps_predicted[sample].flatten() == 0)) * mask[sample].flatten()).sum()
+
         if true_pos + false_neg > 0:
             sample_rec = true_pos / (true_pos + false_neg)
         else:
@@ -695,9 +697,9 @@ def pad_feature2(feature, crop_size, padding_value, padding_size, rank_threshold
         use_rank = rank_threshold
     else:
         use_rank = rank
-    # print(use_rank)
     padding = tf.repeat(padding, use_rank, axis=0)
     for _ in range(rank-use_rank):
         padding = tf.concat([padding, empty], 0)
     feature = tf.pad(feature, padding, constant_values=tf.cast(padding_value, feature.dtype))
+
     return feature

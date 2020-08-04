@@ -353,12 +353,12 @@ class DataGenerator(object):
         minimum_bin_val = float(minimum_bin_val)
         maximum_bin_val = float(maximum_bin_val)
         num_bins = int(num_bins)
-        if transformation_type=="training":
+        if transformation_type == "training":
             if random_crop:   #this is the case for training data
                 index = random_index(primary, crop_size)
             else:             #this is the case for validation data
                 index = [0,0]
-        elif transformation_type=="validation":
+        elif transformation_type == "validation":
             if arr_idx is None:
                 raise ValueError("Index to the validation array cannot be None!")
             index = val_idx_array[arr_idx]
@@ -366,8 +366,8 @@ class DataGenerator(object):
         dist_map = calc_pairwise_distances(tertiary)
         padding_size = math.ceil(primary.shape[0]/crop_size)*crop_size - primary.shape[0]
         # perform cropping + necessary padding
-        random_crop = create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index, crop_size, padding_value, padding_size,
-                                  minimum_bin_val, maximum_bin_val, num_bins)
+        random_crop = create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index, crop_size,
+                                   padding_value, padding_size, minimum_bin_val, maximum_bin_val, num_bins)
         return random_crop
 
 
@@ -456,7 +456,6 @@ if __name__=="__main__":
                 print("Success for array = {}".format(count))
         elif idx > end:
             break
-
 
     # num_data_points = 0
     # print(len(dataprovider))

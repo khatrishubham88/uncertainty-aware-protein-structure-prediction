@@ -1,7 +1,6 @@
 from tensorflow.keras import Input
 from tensorflow import keras
 from tensorflow.keras.layers import Activation, Add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
-from trainable_model_sparse import CustomModel
 from tensorflow.keras.regularizers import l2, l1, l1_l2
 from tensorflow.python.ops import array_ops
 import tensorflow as tf
@@ -83,7 +82,7 @@ class ResNet(keras.Model):
         self.conv_up_down_layers = []
         self.identity_add_layer = []
         # self.conv_down_layers = []
-        
+
         # Concatenate sets containing variable number of ResNet blocks
         for idx, num_set_blocks in enumerate(self.num_blocks):
             resnet_block_list = []

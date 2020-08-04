@@ -84,7 +84,7 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
             for i, batch in enumerate(batches):
                 X.append(batch[0])            # batch[0] of type eager tensor
                 y.append(batch[1])            # batch[1] of type ndarray
-                mask.append(batch[2])         #batch[2] of type eager tensor
+                mask.append(batch[2])         # batch[2] of type eager tensor
 
     print('Finish Feature Extraction...')
     print('Begin model evaluation...')
@@ -96,13 +96,14 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
     mask = tf.convert_to_tensor(mask)
     mask = np.asarray(mask)
     print(X.shape)
-    if( X.shape[0] % params['batch_size'] != 0 ):
+    if X.shape[0] % params['batch_size'] != 0:
         drop_samples = X.shape[0] - ((X.shape[0] // params['batch_size']) * params['batch_size'])
-        X = X[0:X.shape[0]-drop_samples,:,:]
-        mask = mask[0:mask.shape[0]-drop_samples,:,:]
-        y = y[0:y.shape[0]-drop_samples,:,:,:]
+        X = X[0:X.shape[0] - drop_samples, :, :]
+        mask = mask[0:mask.shape[0] - drop_samples, :, :]
+        y = y[0:y.shape[0] - drop_samples, :, :, :]
 
     _, mean_predict = model.mc_predict(X)
+
 
     accuracy, precision, recall, f1, cm = distogram_metrics(y, mean_predict, mask, params['minimum_bin_val'],
                                                             params['maximum_bin_val'], params['num_bins'])
@@ -111,7 +112,8 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
     print('Distogram based Recall:', recall)
     print('Distogram based F1-score:', f1)
     
-    entropy =  entropy_func(mean_predict)
+    entropy = entropy_func(mean_predict)
+
 
     print('Prediction Entropy with MC:', entropy)
     _, cm_accuracy = accuracy_metric(y, mean_predict, mask)
