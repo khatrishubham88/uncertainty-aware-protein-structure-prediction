@@ -56,7 +56,7 @@ def evaluate(testdata_path, model_path, category):
             padded_dist_map = pad_feature2(dist_map, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_mask = pad_feature2(ter_mask, params["crop_size"], params["padding_value"], padding_size, 2)
             crops = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask,
-                                           params["crop_size"], params["crop_size"], params["min_bin_val"], params["max_bin_val"], params["num_bins"])
+                                           params["crop_size"], params["crop_size"], params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
             for crop in crops:
                 X.append(crop[0])  # batch[0] of type eager tensor
                 y.append(crop[1])  # batch[1] of type nd-array
