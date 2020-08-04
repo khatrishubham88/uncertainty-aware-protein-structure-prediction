@@ -507,7 +507,7 @@ class ResNetV2(keras.Model):
                 layers.append(Conv2DTranspose(filters=cls.num_channels[0], kernel_size=1, strides=1, padding='same',
                                               kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                                               data_format='channels_last', name='downscale_conv2dtranspose'))
-            layers.append(BatchNormalization(name='downscale_bn'))
+            # layers.append(BatchNormalization(name='downscale_bn'))
         elif first == 'False':
             if cls.num_channels[-1] < cls.output_channels:
                 layers.append(Conv2DTranspose(filters=cls.output_channels, kernel_size=1, strides=1, padding='same',
