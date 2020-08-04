@@ -7,10 +7,10 @@ Therefore, we use two uncertainty quantification methods to raise the uncertaint
 
 # Model Pretraining
 We are providing an easy to use training script train.py with the following arguments:
-*traindata_path: path to training dataset.
-*valdata_path: path to validation dataset.
-*classweight_path: path to save model weights.
-*val_thinning: thinning of the validaion set.
+* traindata_path: path to training dataset.
+* valdata_path: path to validation dataset.
+* classweight_path: path to save model weights.
+* val_thinning: thinning of the validaion set.
 
 An example of executing the training script train.py would be :python train.py --traindata_path "path/to/training-data" --valdata_path "path/to/val-data" --classweight_path "path/to/model-weights" --val_thinning [Coose between 30,50,70,90,95,100]
 
