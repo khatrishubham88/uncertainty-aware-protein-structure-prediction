@@ -30,23 +30,6 @@ params = {
     "modelling_group": 5  # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
 }
 
-
-def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, crop_size, stride):
-    batches = []
-    for x in range(0, padded_primary.shape[0] - crop_size, stride):
-        for y in range(0, padded_primary.shape[0] - crop_size, stride):
-            primary_2D_crop = padded_primary[x:x + crop_size, y:y + crop_size, :]
-            pssm_crop = padded_evol[x:x + crop_size, y:y + crop_size, :]
-            pri_evol_crop = tf.concat([primary_2D_crop, pssm_crop], axis=2)
-            tertiary_crop = padded_dist_map[x:x + crop_size, y:y + crop_size]
-            tertiary_crop = to_distogram(tertiary_crop, params["minimum_bin_val"], params["maximum_bin_val"],
-                                         params["num_bins"])
-            mask_crop = padded_mask[x:x + crop_size, y:y + crop_size]
-            batches.append((pri_evol_crop, tertiary_crop, mask_crop))
-
-    return batches
-
-
 def ts_evaluate(testdata_path, model_path, temperature_path, category):
     testdata_path = glob.glob(testdata_path + '/*')
     params["modelling_group"] = int(category)

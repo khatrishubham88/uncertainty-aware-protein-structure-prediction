@@ -1,88 +1,160 @@
 from tensorflow.keras import Input
+from tensorflow import keras
 from tensorflow.keras.layers import Activation, Add, BatchNormalization, Conv2D, Conv2DTranspose, Dropout, Softmax
-from trainable_model import CustomModel
 from tensorflow.keras.regularizers import l2, l1, l1_l2
+from tensorflow.python.ops import array_ops
+import tensorflow as tf
+import time
+import tqdm
+from utils import output_to_distancemaps
 
 
-class ResNet():
+class ResNetV2(keras.Model):
     """Two-dimensional dilated convolutional neural network with variable number of residual
     block groups. Each residual block group consists of four ResNet blocks.
     """
-    def __init__(self, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
-                 non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4, kernel_initializer="he_normal", logits=True):
-        super(ResNet, self).__init__()
+    # class variables
+    input_channels = None
+    output_channels = None
+    crop_size = None
+    num_blocks = None
+    num_channels = None
+    dilation = None
+    batch_size = None
+    non_linearity = None
+    dropout_rate = None
+    reg_strength = None
+    kernel_initializer = None
+    logits = None
+    kernel_regularizer = None
+    sparse = None
+    first_layers = None
+    resnet_stack = None
+    dropout_layers = None
+    identity_add_layer = None
+    conv_up_down_layers = None
+    last_layer = None
+    softmax_layer = None
+    mc_dropout = None
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self._inputs, self._outputs, name='AlphaFold_Distance_Prediction_Model')
+        self.dropout_mean = None
+        print(kwargs)
+        try:
+            self.mc_sampling = kwargs["mc_sampling"]
+        except:
+            self.mc_sampling = 100
+
+        if kwargs.get("class_weights", None) is None:
+            self.cw = tf.ones((self.batch_size, self.crop_size, self.crop_size, self.output_channels))
+        elif isinstance(kwargs.get("class_weights", None), dict):
+            if self.output_channels != len(kwargs["class_weights"]):
+                raise ValueError("Incorrect length of class weights. It should be equal to number of output channels!")
+            # tf.tile(tf.reshape(tf.convert_to_tensor(list([d[i] for i in range(len(d))])), (1,1,1,5)),tf.constant([2,4,4,1]))
+            self.cw = tf.convert_to_tensor(list([kwargs["class_weights"][i] for i in range(len(kwargs["class_weights"]))]), dtype=tf.float32)
+        else:
+            raise ValueError("Class weights must be a dictonary")
+        # print(kwargs)
+
+    def __new__(cls, input_channels, output_channels, num_blocks, num_channels, dilation, batch_size=64, crop_size=64,
+                 non_linearity='elu', dropout_rate=0.0, reg_strength=1e-4, logits=True, sparse=False, kernel_initializer="he_normal",
+                 kernel_regularizer="l2", mc_dropout=False, mc_sampling=100, class_weights=None):
+
         if (sum(num_blocks) % len(dilation)) != 0:
             raise ValueError('(Sum of ResNet block % Length of list containing dilation rates) == 0!')
 
-        self.input_channels = input_channels
-        self.output_channels = output_channels
-        self.crop_size = crop_size
-        self.num_blocks = num_blocks
-        self.num_channels = num_channels
-        self.dilation = dilation
-        self.batch_size = batch_size
-        self.non_linearity = non_linearity
-        self.dropout_rate = dropout_rate
-        self.reg_strength = reg_strength
-        self.kernel_initializer = kernel_initializer
-        self.logits = logits
-        self.kernel_regularizer = l2
+        cls.input_channels = input_channels
+        cls.output_channels = output_channels
+        cls.crop_size = crop_size
+        cls.num_blocks = num_blocks
+        cls.num_channels = num_channels
+        cls.dilation = dilation
+        cls.batch_size = batch_size
+        cls.non_linearity = non_linearity
+        cls.dropout_rate = dropout_rate
+        cls.reg_strength = reg_strength
+        cls.kernel_initializer = kernel_initializer
+        cls.logits = logits
+        if kernel_regularizer=="l2":
+            cls.kernel_regularizer = l2
+        elif kernel_regularizer=="l1":
+            cls.kernel_regularizer = l1
+        elif kernel_regularizer=="l1_l2":
+            cls.kernel_regularizer = l1_l2
+        else:
+            raise ValueError("Wrong type of regularizer selected!")
+        cls.sparse = sparse
+        # self.inputs = None
+        cls.first_layers = None
+        cls.resnet_stack = None
+        cls.dropout_layers = None
+        cls.identity_add_layer = None
+        cls.conv_up_down_layers = None
+        cls.last_layer = None
+        cls.softmax_layer = None
+        cls.mc_dropout = mc_dropout
+        cls._inputs, cls._outputs = cls.model_init(cls.mc_dropout)
+        return super().__new__(cls)
 
-    def model(self):
+    @classmethod
+    def model_init(cls, mcd=False):
         """Function that creates the network based on initialized
         parameters.
           Returns:
             Tensorflow Keras model.
         """
         # Create the input layer
-        inputs = x = Input(shape=(self.crop_size, self.crop_size, self.input_channels), batch_size=self.batch_size,
-                           name='input_crop')
+        # Create the input layer
+
+        inputs = x = Input(shape=(cls.crop_size, cls.crop_size, cls.input_channels), batch_size=cls.batch_size, name='input_crop')
 
         # Down- or up sample the input depending on number of input channels and number of channels in first RestNet
         # block
-        first_layers = self.make_layer(first='True')
+        first_layers = cls.make_layer(first='True')
         for layer in first_layers:
             x = layer(x)
 
         # Concatenate sets containing variable number of ResNet blocks
-        for idx, num_set_blocks in enumerate(self.num_blocks):
+        for idx, num_set_blocks in enumerate(cls.num_blocks):
             for block_num in range(num_set_blocks):
                 identity = x
-                layers_resnet = self.resnet_block(num_filters=self.num_channels[idx], stride=1,
-                                                  atou_rate=self.dilation[block_num % 4], set_block=idx,
+                layers_resnet = cls.resnet_block(num_filters=cls.num_channels[idx], stride=1,
+                                                  atou_rate=cls.dilation[block_num % 4], set_block=idx,
                                                   block_num=block_num, kernel_size=3)
                 for layer in layers_resnet:
                     x = layer(x)
                 x = Add(name='add_' + str(idx) + '_' + str(block_num))([x, identity])
-                if 0.0 < self.dropout_rate < 1.0 and ((idx is not len(self.num_blocks)-1) or (block_num is not num_set_blocks-1)):
-                    x = Dropout(rate=self.dropout_rate, name='dropout_' + str(idx) + '_' + str(block_num))(x)
-                
-                if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(self.num_blocks)):
-                    if self.num_channels[idx] > self.num_channels[idx + 1]:
-                        x = Conv2D(filters=self.num_channels[idx + 1], kernel_size=1, strides=1, padding='same',
-                                   kernel_initializer=self.kernel_initializer, kernel_regularizer=l2(self.reg_strength),
+                if 0.0 < cls.dropout_rate < 1.0 and ((idx is not len(cls.num_blocks)-1) or (block_num is not num_set_blocks-1)):
+                    if mcd:
+                        x = Dropout(rate=cls.dropout_rate, name='dropout_' + str(idx) + '_' + str(block_num))(x, training=True)
+                    else:
+                        x = Dropout(rate=cls.dropout_rate, name='dropout_' + str(idx) + '_' + str(block_num))(x)
+                if ((block_num + 1) == num_set_blocks) and ((idx + 1) != len(cls.num_blocks)):
+                    if cls.num_channels[idx] > cls.num_channels[idx + 1]:
+                        x = Conv2D(filters=cls.num_channels[idx + 1], kernel_size=1, strides=1, padding='same',
+                                   kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                                    data_format='channels_last', name='downscale_' + str(idx) + 'to' + str(idx + 1))(x)
-                    elif self.num_channels[idx] < self.num_channels[idx + 1]:
-                        x = Conv2DTranspose(filters=self.num_channels[idx + 1], kernel_size=1, strides=1,
-                                            kernel_initializer=self.kernel_initializer,
-                                            kernel_regularizer=l2(self.reg_strength),
+                    elif cls.num_channels[idx] < cls.num_channels[idx + 1]:
+                        x = Conv2DTranspose(filters=cls.num_channels[idx + 1], kernel_size=1, strides=1,
+                                            kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                                             data_format='channels_last',
                                             padding='same', name='upscale_' + str(idx) + 'to' + str(idx + 1))(x)
-                elif ((block_num + 1) == num_set_blocks) and ((idx + 1) == len(self.num_blocks)):
-                    if self.num_channels[idx] > self.output_channels:
-                        x = self.make_layer()[0](x)
-                    elif self.num_channels[idx] < self.output_channels:
-                        x = self.make_layer()[0](x)
+                elif ((block_num + 1) == num_set_blocks) and ((idx + 1) == len(cls.num_blocks)):
+                    if cls.num_channels[idx] > cls.output_channels:
+                        x = cls.make_layer()[0](x)
+                    elif cls.num_channels[idx] < cls.output_channels:
+                        x = cls.make_layer()[0](x)
 
-        if self.logits:
+        if cls.logits:
             out = Softmax(axis=3, name='softmax_layer')(x)
         else:
             out = x
-        distance_pred_resnet = CustomModel(inputs, out, name='AlphaFold_Distance_Prediction_Model')
+        return inputs, out
 
-        return distance_pred_resnet
-
-    def make_layer(self, first='False'):
+    @classmethod
+    def make_layer(cls, first='False'):
         """Generates a block of layers consisting of convolutional or transposed convolutional layers
         and BatchNorm layers.
           Args:
@@ -93,32 +165,71 @@ class ResNet():
         """
         layers = []
         if first == 'True':
-            if self.input_channels > self.num_channels[0]:
-                layers.append(Conv2D(filters=self.num_channels[0], kernel_size=1, strides=1, padding='same',
-                                     kernel_initializer=self.kernel_initializer,
-                                     kernel_regularizer=l2(self.reg_strength),
+            if cls.input_channels > cls.num_channels[0]:
+                layers.append(Conv2D(filters=cls.num_channels[0], kernel_size=1, strides=1, padding='same',
+                                     kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                                      data_format='channels_last', name='downscale_conv2d'))
-            elif self.input_channels < self.num_channels[0]:
-                layers.append(Conv2DTranspose(filters=self.num_channels[0], kernel_size=1, strides=1, padding='same',
-                                              kernel_initializer=self.kernel_initializer,
-                                              kernel_regularizer=l2(self.reg_strength),
+            elif cls.input_channels < cls.num_channels[0]:
+                layers.append(Conv2DTranspose(filters=cls.num_channels[0], kernel_size=1, strides=1, padding='same',
+                                              kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                                               data_format='channels_last', name='downscale_conv2dtranspose'))
             layers.append(BatchNormalization(name='downscale_bn'))
         elif first == 'False':
-            if self.num_channels[-1] < self.output_channels:
-                layers.append(Conv2DTranspose(filters=self.output_channels, kernel_size=1, strides=1, padding='same',
-                                              kernel_initializer=self.kernel_initializer,
-                                              kernel_regularizer=l2(self.reg_strength),
+            if cls.num_channels[-1] < cls.output_channels:
+                layers.append(Conv2DTranspose(filters=cls.output_channels, kernel_size=1, strides=1, padding='same',
+                                              kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                                               data_format='channels_last', name='upscale_conv2d'))
-            elif self.num_channels[-1] > self.output_channels:
-                layers.append(Conv2D(filters=self.output_channels, kernel_size=1, strides=1, padding='same',
-                                     kernel_initializer=self.kernel_initializer,
-                                     kernel_regularizer=l2(self.reg_strength),
+            elif cls.num_channels[-1] > cls.output_channels:
+                layers.append(Conv2D(filters=cls.output_channels, kernel_size=1, strides=1, padding='same',
+                                     kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                                      data_format='channels_last', name='upscale_conv2d'))
 
         return layers
 
-    def resnet_block(self, num_filters, stride, atou_rate, set_block, block_num, kernel_size=3):
+    def _reshape_mask_fn(self, y_true, sample_weight):
+        new_shape = array_ops.shape(y_true)
+        new_shape = new_shape[0:-1]
+        mask = tf.reshape(sample_weight, shape=new_shape)
+        return mask
+
+    def train_step(self, data):
+        x, y, sw = data
+
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)  # Forward pass
+            # Compute the loss value
+            # (the loss function is configured in `compile()`)
+            # Reshape sample weights
+            mask = self._reshape_mask_fn(y, sw)
+            loss = self.compiled_loss(y*self.cw, y_pred*self.cw, mask)
+            loss = tf.reduce_sum(loss)
+
+        # Compute gradients
+        trainable_vars = self.trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+        # Update weights
+        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+        # Update metrics (includes the metric that tracks the loss)
+        self.compiled_metrics.update_state(y, y_pred, mask)
+        # Return a dict mapping metric names to current value
+        return {m.name: m.result() for m in self.metrics}
+
+    def test_step(self, data):
+        # Unpack the data
+        x, y, sw = data
+        mask = self._reshape_mask_fn(y, sw)
+        # Compute predictions
+        y_pred = self(x)
+        # Updates the metrics tracking the loss
+        self.compiled_loss(y, y_pred, mask)
+        # Update the metrics.
+        self.compiled_metrics.update_state(y, y_pred, mask)
+        # Return a dict mapping metric names to current value.
+        # Note that it will include the loss (tracked in self.metrics).
+        return {m.name: m.result() for m in self.metrics}
+
+    @classmethod
+    def resnet_block(cls, num_filters, stride, atou_rate, set_block, block_num, kernel_size=3):
         """Generates a ResNet block.
           Args:
             num_filters: Number of channels in the input to this ResNet block.
@@ -138,30 +249,37 @@ class ResNet():
 
         # Project down
         layers.append(BatchNormalization(name='batch_norm_down_' + str(set_block) + '_' + str(block_num)))
-        layers.append(Activation(activation=self.non_linearity,
+        layers.append(Activation(activation=cls.non_linearity,
                                  name='non_linearity_down_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2D(filters=num_filters//2, kernel_size=1, strides=stride, padding='same',
-                             kernel_initializer=self.kernel_initializer, kernel_regularizer=l2(self.reg_strength),
+                             kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                              data_format='channels_last', name='conv_down_' + str(set_block) + '_' + str(block_num)))
 
         # Strided convolution
         layers.append(BatchNormalization(name='batch_norm_conv_' + str(set_block) + '_' + str(block_num)))
-        layers.append(Activation(activation=self.non_linearity,
+        layers.append(Activation(activation=cls.non_linearity,
                                  name='non_linearity_conv_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2D(filters=num_filters//2, kernel_size=kernel_size, strides=stride, padding='same',
                              dilation_rate=atou_rate, data_format='channels_last',
-                             kernel_initializer=self.kernel_initializer,
-                             kernel_regularizer=l2(self.reg_strength),
+                             kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                              name='conv_dil_' + str(set_block) + '_' + str(block_num)))
 
         # Project up
         layers.append(BatchNormalization(name='batch_norm_up_' + str(set_block) + '_' + str(block_num)))
-        layers.append(Activation(activation=self.non_linearity,
+        layers.append(Activation(activation=cls.non_linearity,
                                  name='non_linearity_up_' + str(set_block) + '_' + str(block_num)))
         layers.append(Conv2DTranspose(filters=num_filters, kernel_size=1, strides=stride, padding='same',
                                       data_format='channels_last',
-                                      kernel_initializer=self.kernel_initializer,
-                                      kernel_regularizer=l2(self.reg_strength),
+                                      kernel_initializer=cls.kernel_initializer, kernel_regularizer=cls.kernel_regularizer(cls.reg_strength),
                                       name='conv_up_' + str(set_block) + '_' + str(block_num)))
 
         return layers
+
+    def mc_predict(self, X, min_val, max_val, num_bin):
+        mc_predictions = []
+        for _ in tqdm.tqdm(range(self.mc_sampling)):
+            y_p = self.predict(X)
+            mc_predictions.append(y_p)
+        mc_predictions = tf.convert_to_tensor(mc_predictions, dtype=tf.float32)
+        mean = tf.math.reduce_mean(mc_predictions, axis=0)
+        return mc_predictions, mean

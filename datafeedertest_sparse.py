@@ -25,8 +25,6 @@ def main():
     train_path = glob.glob("../../proteinnet/data/casp7/training/100/*")
     val_path = glob.glob("../../proteinnet/data/casp7/validation/1")
     class_weights = "class_weights_normalized.pickle"
-    train_plot = False
-    validation_plot = True
 
     with open(class_weights, 'rb') as handle:
         cws = pickle.load(handle)
@@ -45,13 +43,11 @@ def main():
     "random_crop":True,         # if cropping should be random, this has to be implemented later
     "val_random_crop":True,
     "flattening":True,
-    "take":8,
     "epochs":30,
     "prefetch": True,
     "val_path": val_path,
     "validation_thinning_threshold": 50,
-    "training_validation_ratio": 0.2,
-    # "experimental_val_take": 2
+    "training_validation_ratio": 0.2
     }
     archi_style = "one_group"
     # archi_style = "two_group_prospr"
@@ -131,11 +127,11 @@ def main():
                      kernel_regularizer="l2", mc_dropout=False, class_weights=cws)
     # model = nn.model()
     print(type(model))
-    
+
     model.compile(optimizer=tf.keras.optimizers.Adam(amsgrad=True, learning_rate=0.006, clipnorm=1.0),
                   loss=CategoricalCrossentropyForDistributed(reduction=tf.keras.losses.Reduction.NONE, global_batch_size=params["batch_size"]), metrics=[tf.keras.metrics.CategoricalAccuracy()])
-    # model.build(input_shape=(params["batch_size"], params["crop_size"], params["crop_size"], inp_channel))    
-    
+    # model.build(input_shape=(params["batch_size"], params["crop_size"], params["crop_size"], inp_channel))
+
 
     # model.load_weights("minifold_trained/custom_model_weights_epochs_30_batch_size_16").expect_partial()
     tf.print(model.summary())
@@ -144,7 +140,7 @@ def main():
         num_of_steps = params["take"]
     except:
         num_of_steps = len(dataprovider)
-    
+
     # to find learning rate patience with minimum 3 and then epoch dependent
     lr_patience = 3
 
@@ -192,7 +188,7 @@ def main():
 
     model.save_weights(model_dir + "/class_weight_model_weights_epochs_"+str(params["epochs"])+"_batch_size_"+str(params["batch_size"]))
     model.save(model_dir + '/' + archi_style)
-    
+
     # plot loss
     x_range = range(1,len(model_hist.history["loss"]) + 1)
     plt.figure()
@@ -211,93 +207,6 @@ def main():
     plt.plot(x_range, model_hist.history["lr"])
     plt.savefig("learning_rate.png")
     plt.close("all")
-
-    params["epochs"] = 1
-    dataprovider = DataGenerator(train_path, **params)
-    if params.get("val_path", None) is not None:
-        validation_data = dataprovider.get_validation_dataset()
-        if params.get("experimental_val_take", None) is not None:
-            validation_steps = params.get("experimental_val_take", None)
-        else:
-            validation_steps = dataprovider.get_validation_length()
-    # if train_plot:
-    #     for j in range(num_of_steps):
-    #         X, y, mask = next(dataprovider)
-    #         # model.save("model_b16_fs.h5")
-    #         mask = mask.numpy()
-    #         y = y.numpy()
-    #         mask = mask.reshape(y.shape[0:-1])
-    #         distance_maps = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
-    #         test = model.predict(X)
-    #         test = output_to_distancemaps(test, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
-    #         plt.figure()
-    #         plt.subplot(131)
-    #         plt.title("Ground Truth")
-    #         plt.imshow(distance_maps[0], cmap='viridis_r')
-    #         plt.subplot(132)
-    #         plt.title("Prediction by model")
-    #         plt.imshow(test[0], cmap='viridis_r')
-    #         plt.subplot(133)
-    #         plt.title("mask")
-    #         plt.imshow(mask[0], cmap='viridis_r')
-    #         plt.suptitle("Training Data", fontsize=16)
-    #         plt.savefig(result_dir + "/result.png")
-    #         plt.close("all")
-    #         for i in range(params["batch_size"]):
-    #             plt.figure()
-    #             plt.subplot(131)
-    #             plt.title("Ground Truth")
-    #             plt.imshow(distance_maps[i], cmap='viridis_r')
-    #             plt.subplot(132)
-    #             plt.title("Prediction by model")
-    #             plt.imshow(test[i], cmap='viridis_r')
-    #             plt.subplot(133)
-    #             plt.title("mask")
-    #             plt.imshow(mask[i], cmap='viridis_r')
-    #             plt.suptitle("Training Data", fontsize=16)
-    #             plt.savefig(result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
-    #             plt.close("all")
-
-    if validation_plot:
-        if params.get("val_path", None) is not None:
-            for j, val in enumerate(validation_data):
-                X, y, mask = val
-                # model.save("model_b16_fs.h5")
-                mask = mask.numpy()
-                y = y.numpy()
-                mask = mask.reshape(y.shape[0:-1])
-                distance_maps = output_to_distancemaps(y, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
-                test = model.predict(X)
-                test = output_to_distancemaps(test, params["minimum_bin_val"], params["maximum_bin_val"], params["num_bins"])
-                plt.figure()
-                plt.subplot(131)
-                plt.title("Ground Truth")
-                plt.imshow(distance_maps[0], cmap='viridis_r')
-                plt.subplot(132)
-                plt.title("Prediction by model")
-                plt.imshow(test[0], cmap='viridis_r')
-                plt.subplot(133)
-                plt.title("mask")
-                plt.imshow(mask[0], cmap='viridis_r')
-                plt.suptitle("Validation Data", fontsize=16)
-                plt.savefig(val_result_dir+"/result.png")
-                plt.close("all")
-
-                for i in range(params["batch_size"]):
-                    plt.figure()
-                    plt.subplot(131)
-                    plt.title("Ground Truth")
-                    plt.imshow(distance_maps[i], cmap='viridis_r')
-                    plt.subplot(132)
-                    plt.title("Prediction by model")
-                    plt.imshow(test[i], cmap='viridis_r')
-                    plt.subplot(133)
-                    plt.title("mask")
-                    plt.imshow(mask[i], cmap='viridis_r')
-                    plt.suptitle("Validation Data", fontsize=16)
-                    plt.savefig(val_result_dir + "/result_batch_"+str(j)+"_sample_"+str(i)+".png")
-                    plt.close("all")
-
 
 if __name__=="__main__":
     main()

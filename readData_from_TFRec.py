@@ -308,9 +308,3 @@ def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index
                 distogram = to_distogram(dist_map, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
                 tertiary_mask = pad_feature2(tertiary_mask, crop_size, 0, padding_size, 2)
                 return (pri_evol, distogram, tertiary_mask)
-
-
-if __name__ == '__main__':
-    path = "/home/ghalia/Documents/alphafold/casp7/training/100/1"
-    for primary, evolutionary, tertiary, ter_mask in parse_dataset(path):
-        print(ter_mask)

@@ -23,47 +23,16 @@ params = {
 }
 
 
-def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, crop_size, stride):
-    batches = []
-    for x in range(0, padded_primary.shape[0] - crop_size, stride):
-        for y in range(0, padded_primary.shape[0] - crop_size, stride):
-            primary_2D_crop = padded_primary[x:x + crop_size, y:y + crop_size, :]
-            pssm_crop = padded_evol[x:x + crop_size, y:y + crop_size, :]
-            pri_evol_crop = tf.concat([primary_2D_crop, pssm_crop], axis=2)
-            tertiary_crop = padded_dist_map[x:x + crop_size, y:y + crop_size]
-            tertiary_crop = to_distogram(tertiary_crop, params["minimum_bin_val"], params["maximum_bin_val"],
-                                         params["num_bins"])
-            mask_crop = padded_mask[x:x + crop_size, y:y + crop_size]
-            batches.append((pri_evol_crop, tertiary_crop, mask_crop))
-
-    return batches
-
-
 def mc_evaluate(testdata_path, model_path, category, sampling):
     testdata_path = glob.glob(testdata_path + '/*')
     params["modelling_group"] = int(category)
     print('Setting model architecture...')
 
-    ### String manipulations to extract model architecture from model name
-
-    # inp_channel = int(trained_model_name.split('_')[3])
-    #
-    # num_blocks = (trained_model_name.split('_')[1])[1:-1]
-    # if(',' in  num_blocks):
-    #     num_blocks = [int(nr) for nr in num_blocks.split(',')]
-    # else:
-    #     num_blocks = [int(num_blocks)]
-    # num_channels = (trained_model_name.split('_')[2])[1:-1]
-    # if(',' in  num_channels):
-    #     num_channels = [int(nr) for nr in num_channels.split(',')]
-    # else:
-    #     num_channels = [int(num_channels)]
-
     model = ResNetV2(input_channels=41, output_channels=params["num_bins"], num_blocks=[28], num_channels=[64],
                      dilation=[1, 2, 4, 8], batch_size=params["batch_size"], crop_size=params["crop_size"],
                      non_linearity='elu', dropout_rate=0.1, reg_strength=1e-4, logits=True, sparse=False,
                      kernel_initializer="he_normal", kernel_regularizer="l2", mc_dropout=True, mc_sampling=int(sampling))
-    
+
     model.load_weights(model_path).expect_partial()
     print('Starting to extract features from test set...')
 
@@ -111,7 +80,7 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
     print('Distogram based Precision:', precision)
     print('Distogram based Recall:', recall)
     print('Distogram based F1-score:', f1)
-    
+
     entropy = entropy_func(mean_predict)
 
 
@@ -125,41 +94,5 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
     print("Contact Map Precision: " + str(cm_precision))
     print("Contact Map Recall: " + str(cm_recall))
     print("Contact Map F1-Score: " + str(cm_fscore))
-    # for sample in range(mean_predict.shape[0]):
-    #     #s = mean_predict[sample]
-    #     #np.save('sample-output.npy', s)
-    #     print(mean_predict[sample][0,:,:])
-    #     break
-    
-    # classes = [i+0 for i in range(64)]
-    # title = "Confusion matrix"
-    # cmap = "coolwarm"
-    # normalize = False
-    # fig, ax = plt.subplots()
-    # fig.set_size_inches(34, 34)
-    # im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
-    # ax.figure.colorbar(im, ax=ax)
-    # # We want to show all ticks...
-    # ax.set(xticks=np.arange(cm.shape[1]),
-    # yticks=np.arange(cm.shape[0]),
-    # # ... and label them with the respective list entries
-    # xticklabels=classes, yticklabels=classes,
-    # title=title,
-    # ylabel='True label',
-    # xlabel='Predicted label')
-    #
-    # # Rotate the tick labels and set their alignment.
-    # plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-    # rotation_mode="anchor")
-    #
-    # # Loop over data dimensions and create text annotations.
-    # fmt = '.2f' if normalize else 'd'
-    # thresh = cm.max() / 2.
-    # for i in range(cm.shape[0]):
-    #     for j in range(cm.shape[1]):
-    #         ax.text(j, i, format(cm[i, j], fmt),
-    #         ha="center", va="center",
-    #         color="white" if cm[i, j] > thresh else "black")
-    # fig.tight_layout()
-    # fig.savefig("cm.png")
-    
+
+    ##TODO ECE

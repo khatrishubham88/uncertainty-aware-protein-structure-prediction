@@ -217,6 +217,22 @@ def expand_dim(low_dim_tensor, axis=0):
     return K.stack(low_dim_tensor, axis=axis)
 
 
+def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, crop_size, stride):
+    batches = []
+    for x in range(0, padded_primary.shape[0] - crop_size, stride):
+        for y in range(0, padded_primary.shape[0] - crop_size, stride):
+            primary_2D_crop = padded_primary[x:x + crop_size, y:y + crop_size, :]
+            pssm_crop = padded_evol[x:x + crop_size, y:y + crop_size, :]
+            pri_evol_crop = tf.concat([primary_2D_crop, pssm_crop], axis=2)
+            tertiary_crop = padded_dist_map[x:x + crop_size, y:y + crop_size]
+            tertiary_crop = to_distogram(tertiary_crop, params["minimum_bin_val"], params["maximum_bin_val"],
+                                         params["num_bins"])
+            mask_crop = padded_mask[x:x + crop_size, y:y + crop_size]
+            batches.append((pri_evol_crop, tertiary_crop, mask_crop))
+
+    return batches
+
+
 def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
     """Given a batch of outputs, creates the distance maps ready for plotting.
       Args:
@@ -266,46 +282,6 @@ def output_to_distogram(output, min_angstrom, max_angstrom, num_bins):
         distance_maps = bins[values]
 
     return distance_maps
-
-
-def pad_tensor(tensor, shape):
-    if isinstance(shape, int):
-        shape = tuple([shape])
-    else:
-        shape = tuple(shape)
-    dim = len(shape)
-    padded_tensor = np.zeros(shape)
-    if dim == 1:
-        padded_tensor[0:tensor.shape[0]] = tensor
-    elif dim == 2:
-        padded_tensor[0:tensor.shape[0], 0:tensor.shape[0]] = tensor
-
-    return padded_tensor
-
-
-def pad_primary(tensor, shape):
-    #AA space is betwen 0-19 --> paddings have Id 20
-    curr_length = tensor.shape[0]
-    padded_tensor = np.full(shape, 20)
-    padded_tensor[0:curr_length] = tensor
-
-    return padded_tensor
-
-
-def pad_tertiary(tensor, shape):
-    curr_length = tensor.shape[0]
-    padded_tensor = np.zeros(shape=shape)
-    padded_tensor[0:curr_length, 0:curr_length] = tensor
-
-    return padded_tensor
-
-
-def pad_mask(tensor, shape):
-    curr_length = tensor.shape[0]
-    padded_tensor = np.zeros(shape=shape)
-    padded_tensor[0:curr_length, 0:curr_length] = tensor
-
-    return padded_tensor
 
 
 def calc_distance(aa1, aa2):
