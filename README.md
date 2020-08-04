@@ -5,12 +5,30 @@ Herefore, we use a deep two-dimensional dilated convolutional network with a var
 Besides the accuracy of the model, it is often important to know how confident a neural network is in its prediction. However, modern neural networks tend to be poorly calibrated compared to the ones from a decade ago.
 Therefore, we use two uncertainty quantification methods to raise the uncertainty awareness of the model.
 
-# Insights of ProteinNet Data
-* Contains Train/Test/Validation Splits
-* Number at the end of Filename is the amount of thinning on the dataset.
-* Data parser available in the ProteinNet Repository.
-* Tertiary Features are the Labels
-* Link to the [Repository](https://github.com/aqlaboratory/proteinnet); [Reference Paper](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-019-2932-0)
+# Model Pretraining
+We are providing an easy to use training script train.py with the following arguments:
+* traindata_path: path to training dataset.
+* valdata_path: path to validation dataset.
+* classweight_path: path to save model weights.
+* val_thinning: thinning of the validaion set. [Choose between 30,50,70,90,95,100]
+
+An example of executing the training script train.py would be :python train.py --traindata_path "path/to/training-data" --valdata_path "path/to/val-data" --classweight_path "path/to/model-weights" --val_thinning 50
+
+# Model Evaluation
+We are providing an easy to use evaluation script evaluate.py with the following arguments:
+* testdata_path: path to test dataset.
+* model_path: path to saved model weights.
+* category: what category of the test set to use for evaluation. Choose between [1:TBM , 2:FM 3:TBM-Hard, 4:TBM/TBM-Hard, 5:All]
+* mc: whether to use MC dropout.
+* sampling: number of sampling to use for MC dropout.
+* ts: whether to use Temprature Scaling (TS).
+* temperature_path: in case ts is chosen, path for saving temperature vector must be provided here.
+* plot: wether to plot evaluation set
+
+An example of executing the evaluation script evaluate.py would be
+* without MC dropout or TS: python evaluate.py --testdata_path "path/to/test-set" --model_path "path/to/model-weights" --category 5
+* with TS: python evaluate.py --testdata_path "path/to/training-data" --model_path "path/to/model-weights" --category 5 --ts --temperature_path "path/to/tmpt"
+* with MC dropout: python evaluate.py --testdata_path "path/to/test-set" --model_path "path/to/model-weights" --category 5 --mc --sampling 100
 
 
 # Related Repositories
@@ -25,8 +43,7 @@ Therefore, we use two uncertainty quantification methods to raise the uncertaint
 * [MC-Dropout, Gaussian dropout interpreted as performing Bayesian inference](https://arxiv.org/abs/1506.02142)
 * [Temperature Scaling](https://arxiv.org/pdf/1706.04599.pdf)
 * [Deep ensembles](https://arxiv.org/abs/1612.01474) 
-* [https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift](Deep ensembles (https://arxiv.org/abs/1612.01474) 
-https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift ) 
+* [Can you trust your models](https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift)
 
 # Libraries
 * [Keras](https://keras.io/getting-started/functional-api-guide/)
