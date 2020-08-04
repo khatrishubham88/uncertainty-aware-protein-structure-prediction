@@ -18,11 +18,11 @@ An example of executing the training script train.py would be :python train.py -
 We are providing an easy to use evaluation script evaluate.py with the following arguments:
 * testdata_path: path to test dataset.
 * model_path: path to saved model weights.
-* category: hat category of the test set to use for evaluation. Coose between [1:TBM , 2:FM 3:TBM-Hard, 4:TBM/TBM-Hard, 5:All]
+* category: what category of the test set to use for evaluation. Choose between [1:TBM , 2:FM 3:TBM-Hard, 4:TBM/TBM-Hard, 5:All]
 * mc: whether to use MC dropout.
 * sampling: number of sampling to use for MC dropout.
 * ts: whether to use Temprature Scaling (TS).
-* temperature_path: in case ts is chosen, path to save temperature vector.
+* temperature_path: in case ts is chosen, path for saving temperature vector must be provided here.
 * plot: wether to plot evaluation set
 
 An example of executing the evaluation script evaluate.py would be
