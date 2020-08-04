@@ -5,6 +5,14 @@ Herefore, we use a deep two-dimensional dilated convolutional network with a var
 Besides the accuracy of the model, it is often important to know how confident a neural network is in its prediction. However, modern neural networks tend to be poorly calibrated compared to the ones from a decade ago.
 Therefore, we use two uncertainty quantification methods to raise the uncertainty awareness of the model.
 
+# Model Pretraining
+We are providing an easy to use training script train.py with the following arguments:
+*traindata_path: path to training dataset.
+*valdata_path: path to validation dataset.
+*classweight_path: path to save model weights.
+*val_thinning: thinning of the validaion set.
+
+An example of executing the training script train.py would be :python train.py --traindata_path "path/to/training-data" --valdata_path "path/to/val-data" --classweight_path "path/to/model-weights" --val_thinning [Coose between 30,50,70,90,95,100]
 
 # Related Repositories
 * [AlphaFold](https://github.com/deepmind/deepmind-research/tree/7bb484fffa87d3486ac791bb98b5b3dd65d8264e/alphafold_casp13); [Reference Paper](https://www.nature.com/articles/s41586-019-1923-7.epdf?author_access_token=Z_KaZKDqtKzbE7Wd5HtwI9RgN0jAjWel9jnR3ZoTv0MCcgAwHMgRx9mvLjNQdB2TlQQaa7l420UCtGo8vYQ39gg8lFWR9mAZtvsN_1PrccXfIbc6e-tGSgazNL_XdtQzn1PHfy21qdcxV7Pw-k3htw%3D%3D)
