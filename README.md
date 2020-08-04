@@ -1,4 +1,4 @@
-#Introduction
+# Introduction
 In this work, we use AlphaFold as benchmark model. However, we only focus on predicting the pairwise distances of amino acids using both primary features which are the sequences of proteins themselves and
 evolutionary features extracted from Multiple Sequence Alignments. Our model, similar to AlphaFold, predicts the distograms which are discretized distances. We only consider distances between 2 and 22 Angstroms.
 Herefore, we use a deep two-dimensional dilated convolutional network with a variable number of residual block groups. 
