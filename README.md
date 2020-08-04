@@ -5,13 +5,6 @@ Herefore, we use a deep two-dimensional dilated convolutional network with a var
 Besides the accuracy of the model, it is often important to know how confident a neural network is in its prediction. However, modern neural networks tend to be poorly calibrated compared to the ones from a decade ago.
 Therefore, we use two uncertainty quantification methods to raise the uncertainty awareness of the model.
 
-# Insights of ProteinNet Data
-* Contains Train/Test/Validation Splits
-* Number at the end of Filename is the amount of thinning on the dataset.
-* Data parser available in the ProteinNet Repository.
-* Tertiary Features are the Labels
-* Link to the [Repository](https://github.com/aqlaboratory/proteinnet); [Reference Paper](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-019-2932-0)
-
 
 # Related Repositories
 * [AlphaFold](https://github.com/deepmind/deepmind-research/tree/7bb484fffa87d3486ac791bb98b5b3dd65d8264e/alphafold_casp13); [Reference Paper](https://www.nature.com/articles/s41586-019-1923-7.epdf?author_access_token=Z_KaZKDqtKzbE7Wd5HtwI9RgN0jAjWel9jnR3ZoTv0MCcgAwHMgRx9mvLjNQdB2TlQQaa7l420UCtGo8vYQ39gg8lFWR9mAZtvsN_1PrccXfIbc6e-tGSgazNL_XdtQzn1PHfy21qdcxV7Pw-k3htw%3D%3D)
@@ -25,8 +18,7 @@ Therefore, we use two uncertainty quantification methods to raise the uncertaint
 * [MC-Dropout, Gaussian dropout interpreted as performing Bayesian inference](https://arxiv.org/abs/1506.02142)
 * [Temperature Scaling](https://arxiv.org/pdf/1706.04599.pdf)
 * [Deep ensembles](https://arxiv.org/abs/1612.01474) 
-* [https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift](Deep ensembles (https://arxiv.org/abs/1612.01474) 
-https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift ) 
+* [Can you trust your models](https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift)
 
 # Libraries
 * [Keras](https://keras.io/getting-started/functional-api-guide/)
