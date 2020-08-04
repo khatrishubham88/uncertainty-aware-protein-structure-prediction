@@ -104,6 +104,9 @@ def evaluate(testdata_path, model_path, category):
     print('Distogram based Recall:', recall)
     print('Distogram based F1-score:', f1)
 
+    entropy = entropy_func(y_predict)
+    print('Prediction Entropy:', entropy)
+    print('ECE: ', ece)
 
 
 if __name__ == "__main__":
