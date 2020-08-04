@@ -233,7 +233,7 @@ def widen_seq(seq):
 
 def widen_pssm(pssm):
     """
-    Widens the LxL PSSM matrix into LxLxN shape.
+    Widens the L x L PSSM matrix into LxLxN shape.
       Args:
         pssm: PSSM matrix.
       Returns:

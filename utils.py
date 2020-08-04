@@ -217,7 +217,8 @@ def expand_dim(low_dim_tensor, axis=0):
     return K.stack(low_dim_tensor, axis=axis)
 
 
-def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, crop_size, stride):
+def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, crop_size, stride, min_bin_val,
+                           max_bin_val, num_bins):
     batches = []
     for x in range(0, padded_primary.shape[0] - crop_size, stride):
         for y in range(0, padded_primary.shape[0] - crop_size, stride):
@@ -225,8 +226,7 @@ def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_
             pssm_crop = padded_evol[x:x + crop_size, y:y + crop_size, :]
             pri_evol_crop = tf.concat([primary_2D_crop, pssm_crop], axis=2)
             tertiary_crop = padded_dist_map[x:x + crop_size, y:y + crop_size]
-            tertiary_crop = to_distogram(tertiary_crop, params["minimum_bin_val"], params["maximum_bin_val"],
-                                         params["num_bins"])
+            tertiary_crop = to_distogram(tertiary_crop, min_bin_val, max_bin_val, num_bins)
             mask_crop = padded_mask[x:x + crop_size, y:y + crop_size]
             batches.append((pri_evol_crop, tertiary_crop, mask_crop))
 

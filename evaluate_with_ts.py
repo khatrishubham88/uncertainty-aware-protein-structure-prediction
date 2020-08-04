@@ -30,7 +30,16 @@ params = {
     "modelling_group": 5  # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
 }
 
+
 def ts_evaluate(testdata_path, model_path, temperature_path, category):
+    """Evaluates a model before and after Temperature Scaling for a certain
+       category in a test set.
+          Args:
+            testdata_path: Path to folder containing test data.
+            model_path: Path to model weights.
+            temperature_path: Path to Numpy binary containing learned temperature.
+            category: 1. TBM, 2. FM, 3. TBM-Hard, 4. TBM/TBM-Hard, 5. All
+        """
     testdata_path = glob.glob(testdata_path + '/*')
     params["modelling_group"] = int(category)
 
@@ -49,7 +58,8 @@ def ts_evaluate(testdata_path, model_path, temperature_path, category):
             padded_dist_map = pad_feature2(dist_map, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_mask = pad_feature2(ter_mask, params["crop_size"], params["padding_value"], padding_size, 2)
             crops = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask,
-                                           params["crop_size"], params["crop_size"])
+                                           params["crop_size"], params["crop_size"], params["minimum_bin_val"],
+                                           params["maximum_bin_val"], params["num_bins"])
             for crop in crops:
                 X.append(crop[0])  # batch[0] of type eager tensor
                 y.append(crop[1])  # batch[1] of type nd-array
@@ -152,6 +162,6 @@ def ts_evaluate(testdata_path, model_path, temperature_path, category):
 
     plt.style.use('ggplot')
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(22.5, 4), sharex='col', sharey='row')
-    rel_diagram_sub(accuracies, confidences, ax[0])
-    rel_diagram_sub(accuracies_scaled, confidences_scaled, ax[1])
+    rel_diagram_sub(accuracies, confidences, ax[0], name="Before TS")
+    rel_diagram_sub(accuracies_scaled, confidences_scaled, ax[1], name="After TS")
     plt.show()

@@ -1,14 +1,15 @@
-from network_sparse import ResNet, ResNetV2
+import glob
+import sys
+
+import numpy as np
 import tensorflow.keras.backend as K
 import tensorflow as tf
-import numpy as np
-from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, parse_dataset
-import sys
-import glob
-from utils import *
-from scipy.stats import entropy
-np.set_printoptions(threshold=np.inf)
 
+from network import ResNetV2
+from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm
+from utils import *
+
+np.set_printoptions(threshold=np.inf)
 sys.setrecursionlimit(10000)
 
 params = {
@@ -49,7 +50,9 @@ def mc_evaluate(testdata_path, model_path, category, sampling):
             padded_evol = pad_feature2(pssm, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_dist_map = pad_feature2(dist_map, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_mask = pad_feature2(ter_mask, params["crop_size"], params["padding_value"], padding_size, 2)
-            batches = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, params["crop_size"], params["crop_size"])
+            batches = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask,
+                                           params["crop_size"], params["crop_size"], params["minimum_bin_val"],
+                                           params["maximum_bin_val"], params["num_bins"])
             for i, batch in enumerate(batches):
                 X.append(batch[0])            # batch[0] of type eager tensor
                 y.append(batch[1])            # batch[1] of type ndarray
