@@ -5,7 +5,8 @@ import tensorflow as tf
 
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
-from utils import to_distogram
+import math
+from utils import to_distogram, create_protein_batches
 from utils import pad_feature2, calc_pairwise_distances, output_to_distancemaps, contact_map_from_distancemap, accuracy_metric, precision_metric
 
 NUM_AAS = 20
@@ -308,3 +309,36 @@ def create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index
                 distogram = to_distogram(dist_map, min_val=minimum_bin_val, max_val=maximum_bin_val, num_bins=num_bins)
                 tertiary_mask = pad_feature2(tertiary_mask, crop_size, 0, padding_size, 2)
                 return (pri_evol, distogram, tertiary_mask)
+
+def prepare_test_set(path:list, modelling_group:int, crop_size, padding_value, min_bin_val, max_bin_val, num_bins, batch_size):
+    X = []
+    y = []
+    mask = []
+    for primary, evolutionary, tertiary, ter_mask in parse_test_dataset(path, modelling_group):
+        if (primary != None):
+            primary_2D = widen_seq(primary)
+            pssm = widen_pssm(evolutionary)
+            dist_map = calc_pairwise_distances(tertiary)
+            padding_size = math.ceil(primary.shape[0]/crop_size)*crop_size - primary.shape[0]
+            padded_primary = pad_feature2(primary_2D, crop_size, padding_value, padding_size, 2)
+            padded_evol = pad_feature2(pssm, crop_size, padding_value, padding_size, 2)
+            padded_dist_map = pad_feature2(dist_map, crop_size, padding_value, padding_size, 2)
+            padded_mask = pad_feature2(ter_mask, crop_size, padding_value, padding_size, 2)
+            batches = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask,
+                                           crop_size, crop_size, min_bin_val,
+                                           max_bin_val, num_bins)
+            for i, batch in enumerate(batches):
+                X.append(batch[0])            # batch[0] of type eager tensor
+                y.append(batch[1])            # batch[1] of type ndarray
+                mask.append(batch[2])         # batch[2] of type eager tensor
+    X = tf.convert_to_tensor(X)
+    y = np.asarray(y)
+    mask = tf.convert_to_tensor(mask)
+    mask = np.asarray(mask)
+    
+    if X.shape[0] % batch_size != 0:
+        drop_samples = X.shape[0] - ((X.shape[0] // batch_size) * batch_size)
+        X = X[0:X.shape[0] - drop_samples, :, :]
+        mask = mask[0:mask.shape[0] - drop_samples, :, :]
+        y = y[0:y.shape[0] - drop_samples, :, :, :]
+    return X, y, mask

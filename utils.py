@@ -434,6 +434,9 @@ def contact_map_from_distogram(y_predict):
 
     return contact_maps
 
+def prob_to_class(y_pred, num_classes):
+    y_pred = tf.convert_to_tensor(y_pred, dtype=tf.float32)
+    return tf.one_hot(tf.math.argmax(y_pred, axis=-1), num_classes)
 
 def entropy_func(y_predict):
     """Calculates entropy on a data of shape (#samples, 64, 64, 64)
