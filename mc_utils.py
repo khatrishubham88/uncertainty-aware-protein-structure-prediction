@@ -2,6 +2,7 @@ import tensorflow as tf
 import math
 import numpy as np
 from tensorflow.python.ops import array_ops
+from utils import prob_to_class
 
 def save_tfrecord(y, fname):
     serialized_tensor = tf.io.serialize_tensor(y)
@@ -20,3 +21,12 @@ def sample_misspecification(y_mean, y_pred):
     num_elems = tf.math.reduce_prod(array_ops.shape(y_mean))
     return total, num_elems
 
+def total_model_noise(y_true, y_pred, num_classes):
+    pred_classes = prob_to_class(y_pred, num_classes)
+    model_noise, count = sample_misspecification(pred_classes, y_true)
+    model_noise /= float(count)
+    try:
+        model_noise = tf.math.sqrt(tf.cast(model_noise))
+    except:
+        model_noise = math.sqrt(float(model_noise))
+    return model_noise

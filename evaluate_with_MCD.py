@@ -41,13 +41,7 @@ def mc_evaluate(X, y, mask, model_path, params, sampling):
     model.load_weights(model_path).expect_partial()
     
     y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
-    y_predict = prob_to_class(y_predict, params["num_bins"])
-    model_noise, count = sample_misspecification(y_predict, y)
-    model_noise /= float(count)
-    try:
-        model_noise = tf.math.sqrt(tf.cast(model_noise))
-    except:
-        model_noise = math.sqrt(float(model_noise))
+    model_noise = total_model_noise(y, y_predict, params["num_bins"])
     
     # print("model_noise = {}, mis_spec = {}, type_mis_spec = {}, type_model_noise = {}".format(model_noise, mis_spec, type(mis_spec), type(model_noise)))
     model_uq = math.sqrt(model_noise**2 + mis_spec**2)

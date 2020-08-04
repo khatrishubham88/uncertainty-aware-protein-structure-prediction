@@ -41,13 +41,7 @@ def evaluate(X, y, mask, model_path, params):
                                                                                   mask_original, axis=3)
     ece = expected_calibration_error(max_confidence, prediction, true_labels, mask_original)
     y_predict = softmax(y_predict_logits, axis=-1)
-
-    model_noise, count = sample_misspecification(y_predict, y)
-    model_noise /= float(count)
-    try:
-        model_noise = tf.math.sqrt(tf.cast(model_noise))
-    except:
-        model_noise = math.sqrt(float(model_noise))
+    model_noise = total_model_noise(y, y_predict, params["num_bins"])
     
     samples_acc, total_acc = accuracy_metric(y, y_predict, mask)
     samples_precision, total_precesion = precision_metric(y, y_predict, mask)
