@@ -1,3 +1,10 @@
+#Introduction
+In this work, we use AlphaFold as benchmark model. However, we only focus on predicting the pairwise distances of amino acids using both primary features which are the sequences of proteins themselves and
+evolutionary features extracted from Multiple Sequence Alignments. Our model, similar to AlphaFold, predicts the distograms which are discretized distances. We only consider distances between 2 and 22 Angstroms.
+Herefore, we use a deep two-dimensional dilated convolutional network with a variable number of residual block groups. 
+Besides the accuracy of the model, it is often important to know how confident a neural network is in its prediction. However, modern neural networks tend to be poorly calibrated compared to the ones from a decade ago.
+Therefore, we use two uncertainty quantification methods to raise the uncertainty awareness of the model.
+
 # Insights of ProteinNet Data
 * Contains Train/Test/Validation Splits
 * Number at the end of Filename is the amount of thinning on the dataset.
@@ -24,10 +31,6 @@
 * [Deep ensembles](https://arxiv.org/abs/1612.01474) 
 * [https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift](Deep ensembles (https://arxiv.org/abs/1612.01474) 
 https://papers.nips.cc/paper/9547-can-you-trust-your-models-uncertainty-evaluating-predictive-uncertainty-under-dataset-shift ) 
-
-# Features 
-* Sequence
-* [PSSM](https://www.ncbi.nlm.nih.gov/Class/Structure/pssm/pssm_viewer.cgi)
 
 # Libraries
 * [Keras](https://keras.io/getting-started/functional-api-guide/)
