@@ -1,26 +1,18 @@
 import argparse
 import glob
-import random
 import sys
 
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
 from evaluate_with_MCD import mc_evaluate
 from evaluate_with_ts import ts_evaluate
-
-import sys
-from network_sparse import ResNet, ResNetV2
-from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, parse_dataset
+from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm
 from utils import *
-
-
 from utils_temperature_scaling import *
 
 np.set_printoptions(threshold=np.inf)
-
 sys.setrecursionlimit(10000)
 
 params = {
@@ -117,13 +109,12 @@ def evaluate(testdata_path, model_path, category):
     print('ECE: ', ece)
 
 
-
 if __name__ == "__main__":
     """
     Example execution:
-        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/minifold_trained/custom_model_weights_epochs_30_batch_size_16" --category 5
+        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/unweighted_model/custom_model_weights_epochs_30_batch_size_16" --category 5
 
-        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/clipped_weights_epoch24/chkpnt" --category 2 --ts --temperature_path "P:/proteinfolding_alphafold/temperatures/temperatures_clipped.npy"
+        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/clipped_weights_epoch24/chkpnt" --category 2 --ts --temperature_path "P:/proteinfolding_alphafold/temperatures/temperature_weighted.npy"
     """
 
     parser = argparse.ArgumentParser(description='TUM Alphafold!')
