@@ -12,12 +12,13 @@ from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, prepa
 from utils import *
 from utils_temperature_scaling import *
 from mc_utils import *
+from test_plotter import plotter
 
 np.set_printoptions(threshold=np.inf)
 sys.setrecursionlimit(10000)
 
 
-def evaluate(X, y, mask, model_path, params):
+def evaluate(X, y, mask, model_path, params, plot=False, result_dir=None):
 
     print('Setting model architecture...')
 
@@ -63,6 +64,8 @@ def evaluate(X, y, mask, model_path, params):
     print('Prediction Entropy:', entropy)
     print("Model Prediction Uncertainity: {}".format(model_noise))
     print('ECE: ', ece)
+    if plot:
+        plotter(y_predict, y, mask, params, result_dir)
 
 
 if __name__ == "__main__":
@@ -92,13 +95,15 @@ if __name__ == "__main__":
     parser.add_argument("--ts", help="Whether to use the Temperature Scaling for evaluation", action='store_true')
     parser.add_argument("--temperature_path", help="Path to test set e.g. /path/to/temperature.npy")
     parser.add_argument("--plot", help="Whether to plot evaluation set", action='store_true')
-
+    parser.add_argument("--plot_result_dir", help="Path to store plots e.g. /path/to/plot/dir")
+    
     args = parser.parse_args()
     testdata_path = args.testdata_path
     model_path = args.model_path
     category = args.category
     sampling = args.sampling
     temperature_path = args.temperature_path
+    result_dir = args.plot_result_dir
     
     testdata_path = glob.glob(testdata_path + '/*')
     params["modelling_group"] = int(category)
@@ -115,8 +120,8 @@ if __name__ == "__main__":
     print('Finish Feature Extraction...')
 
     if args.mc:
-        mc_evaluate(X, y, mask, model_path, params, sampling)
+        mc_evaluate(X, y, mask, model_path, params, sampling, plot=args.plot, result_dir=result_dir)
     elif args.ts:
-        ts_evaluate(testdata_path, model_path, temperature_path, category)
+        ts_evaluate(X, y, mask, model_path, temperature_path, params, plot=args.plot, result_dir=result_dir)
     else:
-        evaluate(X, y, mask, model_path, params)
+        evaluate(X, y, mask, model_path, params, plot=args.plot, result_dir=result_dir)

@@ -19,7 +19,7 @@ def softmax(x, axis):
 
 def model_with_logits_output(inp_channel=41, output_channels=64, num_blocks=None, num_channels=None,
                              dilation=None, batch_size=16, crop_size=64, dropout_rate=0.1, reg_strength=1e-4,
-                             kernel_initializer="he_normal"):
+                             kernel_initializer="he_normal", kernel_regularizer="l2"):
     """Returns a Keras model that outputs logits.
       Args:
         inp_channel: Number of channels in the input.
@@ -45,7 +45,7 @@ def model_with_logits_output(inp_channel=41, output_channels=64, num_blocks=None
     model = ResNetV2(input_channels=inp_channel, output_channels=output_channels, num_blocks=num_blocks,
                      num_channels=num_channels, dilation=dilation, batch_size=batch_size, crop_size=crop_size,
                      non_linearity='elu', dropout_rate=dropout_rate, reg_strength=reg_strength, logits=False,
-                     kernel_initializer=kernel_initializer, kernel_regularizer="l2")
+                     kernel_initializer=kernel_initializer, kernel_regularizer=kernel_regularizer)
 
     return model
 

@@ -2,7 +2,7 @@ import glob
 import sys
 
 import numpy as np
-
+from test_plotter import plotter
 from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm
 from utils import *
 from utils_temperature_scaling import *
@@ -19,19 +19,9 @@ dropout_rate = 0.1
 reg_strength = 1e-4
 kernel_init = "he_normal"
 
-params = {
-    "crop_size": 64,  # this will be the  LxL window size
-    "features": "pri-evo",  # this will decide the number of channel, with primary 20, pri-evo 41
-    "padding_value": 0,  # value to use for padding the sequences, mask is padded by 0 only
-    "minimum_bin_val": 2,  # starting bin size
-    "maximum_bin_val": 22,  # largest bin size
-    "num_bins": 64,  # num of bins to use
-    "batch_size": 16,  # batch size for training and evaluation
-    "modelling_group": 5  # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
-}
 
 
-def ts_evaluate(testdata_path, model_path, temperature_path, category):
+def ts_evaluate(X, y, mask, model_path, temperature_path, params, plot=False, result_dir=None):
     """Evaluates a model before and after Temperature Scaling for a certain
        category in a test set.
           Args:
@@ -40,51 +30,12 @@ def ts_evaluate(testdata_path, model_path, temperature_path, category):
             temperature_path: Path to Numpy binary containing learned temperature.
             category: 1. TBM, 2. FM, 3. TBM-Hard, 4. TBM/TBM-Hard, 5. All
         """
-    testdata_path = glob.glob(testdata_path + '/*')
-    params["modelling_group"] = int(category)
 
-    print('Start data extraction..')
-    X = []
-    y = []
-    mask = []
-    for primary, evolutionary, tertiary, ter_mask in parse_test_dataset(testdata_path, params["modelling_group"]):
-        if primary is not None:
-            primary_2D = widen_seq(primary)
-            pssm = widen_pssm(evolutionary)
-            dist_map = calc_pairwise_distances(tertiary)
-            padding_size = math.ceil(primary.shape[0] / params["crop_size"]) * params["crop_size"] - primary.shape[0]
-            padded_primary = pad_feature2(primary_2D, params["crop_size"], params["padding_value"], padding_size, 2)
-            padded_evol = pad_feature2(pssm, params["crop_size"], params["padding_value"], padding_size, 2)
-            padded_dist_map = pad_feature2(dist_map, params["crop_size"], params["padding_value"], padding_size, 2)
-            padded_mask = pad_feature2(ter_mask, params["crop_size"], params["padding_value"], padding_size, 2)
-            crops = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask,
-                                           params["crop_size"], params["crop_size"], params["minimum_bin_val"],
-                                           params["maximum_bin_val"], params["num_bins"])
-            for crop in crops:
-                X.append(crop[0])  # batch[0] of type eager tensor
-                y.append(crop[1])  # batch[1] of type nd-array
-                mask.append(crop[2])  # batch[2] of type eager tensor
-
-    print("Number of samples in the test data: " + str(len(X)))
-
-    print('Finish data extraction..')
     print('Begin model evaluation...')
 
     """
     Begin model evaluation
     """
-
-    X = tf.convert_to_tensor(X)
-    y = np.asarray(y)
-    mask = tf.convert_to_tensor(mask)
-    mask = np.asarray(mask)
-
-    if X.shape[0] % params['batch_size'] != 0:
-        drop_samples = X.shape[0] - ((X.shape[0] // params['batch_size']) * params['batch_size'])
-        X = X[0:X.shape[0] - drop_samples, :, :]
-        mask = mask[0:mask.shape[0] - drop_samples, :, :]
-        y = y[0:y.shape[0] - drop_samples, :, :, :]
-
     # Calculate ECE (Expected Calibration Error) prior to Temperature Scaling.
     model = model_with_logits_output(inp_channel=input_channels, output_channels=params["num_bins"],
                                      num_blocks=num_blocks, num_channels=num_channels, dilation=dilation,
@@ -165,3 +116,6 @@ def ts_evaluate(testdata_path, model_path, temperature_path, category):
     rel_diagram_sub(accuracies, confidences, ax[0], name="Before TS")
     rel_diagram_sub(accuracies_scaled, confidences_scaled, ax[1], name="After TS")
     plt.show()
+    
+    if plot:
+        plotter(y_pred_scaled_sm, y, mask, params, result_dir)

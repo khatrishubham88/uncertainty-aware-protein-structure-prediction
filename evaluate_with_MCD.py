@@ -9,11 +9,12 @@ from network import ResNetV2
 from readData_from_TFRec import parse_test_dataset, widen_seq, widen_pssm, prepare_test_set
 from utils import *
 from mc_utils import *
+from test_plotter import plotter
 
 np.set_printoptions(threshold=np.inf)
 sys.setrecursionlimit(10000)
 
-def mc_evaluate(X, y, mask, model_path, params, sampling):
+def mc_evaluate(X, y, mask, model_path, params, sampling, plot=False, result_dir=None):
     # testdata_path = glob.glob(testdata_path + '/*')
     # params["modelling_group"] = int(category)
     print('Setting model architecture...')
@@ -67,3 +68,5 @@ def mc_evaluate(X, y, mask, model_path, params, sampling):
     print("Contact Map Precision: " + str(cm_precision))
     print("Contact Map Recall: " + str(cm_recall))
     print("Contact Map F1-Score: " + str(cm_fscore))
+    if plot:
+        plotter(mean_predict, y, mask, params, result_dir)

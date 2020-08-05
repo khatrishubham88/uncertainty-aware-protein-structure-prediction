@@ -16,6 +16,9 @@ class ResNetV2(keras.Model):
     """Two-dimensional dilated convolutional neural network with variable number of residual
     block groups. Each residual block group consists of four ResNet blocks.
     """
+    @classmethod
+    def none_reg(cls, val):
+        return None
     # class variables
     input_channels = None
     output_channels = None
@@ -78,7 +81,10 @@ class ResNetV2(keras.Model):
         cls.non_linearity = non_linearity
         cls.dropout_rate = dropout_rate
         cls.reg_strength = reg_strength
-        cls.kernel_initializer = kernel_initializer
+        if kernel_initializer is None:
+            cls.kernel_initializer = "glorot_uniform"    
+        else:
+            cls.kernel_initializer = kernel_initializer
         cls.logits = logits
         if kernel_regularizer=="l2":
             cls.kernel_regularizer = l2
@@ -86,6 +92,8 @@ class ResNetV2(keras.Model):
             cls.kernel_regularizer = l1
         elif kernel_regularizer=="l1_l2":
             cls.kernel_regularizer = l1_l2
+        elif kernel_regularizer is None:
+            cls.kernel_regularizer = cls.none_reg
         else:
             raise ValueError("Wrong type of regularizer selected!")
         cls.sparse = sparse
