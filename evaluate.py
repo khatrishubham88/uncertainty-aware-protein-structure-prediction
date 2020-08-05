@@ -68,7 +68,7 @@ def evaluate(X, y, mask, model_path, params):
 
     entropy = entropy_func(y_predict)
     print('Prediction Entropy:', entropy)
-    print("Model Prediction Uncertainity: {}".format(model_noise))
+    print("Model Prediction Uncertainty: {}".format(model_noise))
     print('ECE: ', ece)
 
 

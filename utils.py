@@ -183,31 +183,6 @@ def load_npy_binary(path):
     return np.load(path)
 
 
-def masked_categorical_cross_entropy():
-    def loss(y_true, y_pred):
-        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-        loss = tf.keras.losses.CategoricalCrossentropy()
-        l = loss(y_true, y_pred)
-
-        return l
-
-    return loss
-
-
-def masked_categorical_cross_entropy_test():
-    # mask = K.variable()
-    strategy = tf.distribute.MirroredStrategy()
-
-    def loss(y_true, y_pred):
-        with strategy.scope():
-            kerasloss = tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
-            y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-            l = kerasloss(y_true, y_pred)
-        return l
-
-    return loss
-
-
 def expand_dim(low_dim_tensor, axis=0):
     """Stacks a list of rank `R` tensors into a rank `R+1` tensor.
       Args:
