@@ -40,7 +40,6 @@ class ResNetV2(keras.Model):
     softmax_layer = None
     mc_dropout = None
 
-
     def __init__(self, *args, **kwargs):
         super().__init__(self._inputs, self._outputs, name='AlphaFold_Distance_Prediction_Model')
         self.dropout_mean = None

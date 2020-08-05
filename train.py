@@ -29,7 +29,7 @@ def train(traindata_path, valdata_path, classweight_path, val_thinning):
         valdata_path: Path to validation data as string.
         classweight_path: Path to pickle file containing class weights as string.
         val_thinning: Thinning to be used for validation as integer.
-        """
+    """
     train_path = glob.glob(traindata_path)
     val_path = glob.glob(valdata_path)
     class_weights = classweight_path

@@ -18,7 +18,14 @@ sys.setrecursionlimit(10000)
 
 
 def evaluate(X, y, mask, model_path, params):
-
+    """Evaluates a model for a certain category in a test set.
+      Args:
+        X: Input data as TensorFlow tensor.
+        y: Ground truth as Numpy array.
+        mask: Masking tensor as Numpy array.
+        model_path: String containing path to model weights.
+        params: Dictionary containing parameters for the data provider.
+    """
     print('Setting model architecture...')
 
     model_logits = model_with_logits_output(inp_channel=41, output_channels=params["num_bins"],
@@ -70,7 +77,7 @@ if __name__ == "__main__":
     Example execution:
         python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/unweighted_model/custom_model_weights_epochs_30_batch_size_16" --category 5
 
-        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/clipped_weights_epoch24/chkpnt" --category 2 --ts --temperature_path "P:/proteinfolding_alphafold/temperatures/temperature_weighted.npy"
+        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/weighted_model/chkpnt" --category 2 --ts --temperature_path "P:/proteinfolding_alphafold/temperatures/temperature_weighted.npy"
     """
 
     params = {
