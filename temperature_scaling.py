@@ -129,7 +129,7 @@ def learn_temperature(traindata_path, valdata_path, model_path, epochs, iteratio
     temperatures_dir = "temperatures"
     if os.path.isdir(temperatures_dir) is False:
         os.mkdir(temperatures_dir)
-    name_temperature_binary_file = temperatures_dir + "/" + "temperatures_unclipped" # 1.3075706
+    name_temperature_binary_file = temperatures_dir + "/" + "temperature"
     np.save(name_temperature_binary_file, temperatures[-1])
 
 
