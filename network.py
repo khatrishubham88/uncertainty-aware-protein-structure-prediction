@@ -7,6 +7,9 @@ import tensorflow as tf
 import time
 import tqdm
 from utils import output_to_distancemaps
+from mc_utils import *
+import shutil
+import math
 
 
 class ResNetV2(keras.Model):
@@ -275,11 +278,59 @@ class ResNetV2(keras.Model):
 
         return layers
 
-    def mc_predict(self, X, min_val, max_val, num_bin):
+    def mc_predict_with_sample(self, X):
         mc_predictions = []
         for _ in tqdm.tqdm(range(self.mc_sampling)):
-            y_p = self.predict(X)
+            y_p = self.predict(X, batch_size=self.batch_size)
             mc_predictions.append(y_p)
         mc_predictions = tf.convert_to_tensor(mc_predictions, dtype=tf.float32)
         mean = tf.math.reduce_mean(mc_predictions, axis=0)
-        return mc_predictions, mean
+        
+        # misspecification
+        total_count = 0
+        total_misspecification = 0
+        for i in range(self.mc_sampling):
+            sample_mis, count = sample_misspecification(mc_predictions[i], mean)
+            total_count += count
+            total_misspecification += sample_mis
+        total_misspecification /= float(total_count)
+        try:
+            total_misspecification = tf.math.sqrt(tf.cast(total_misspecification))
+        except:
+            total_misspecification = math.sqrt(float(total_misspecification))
+        return mc_predictions, mean, total_misspecification
+    
+    def mc_predict_without_sample(self, X):
+        tmp_path = ".mcd_tmp_files"
+        # start with mean computation
+        mean = self.predict(X, batch_size=self.batch_size)
+        save_tfrecord(mean, tmp_path + "/sample_"+str(0))
+        for i in tqdm.tqdm(range(self.mc_sampling - 1)):
+            pred = self.predict(X, batch_size=self.batch_size)
+            save_tfrecord(pred, tmp_path + "/sample_"+str(i+1))
+            mean += pred
+        mean /= self.mc_sampling
+        save_tfrecord(mean, tmp_path + "/mean")
+        # misspecification
+        total_count = 0
+        total_misspecification = 0
+        for i in range(self.mc_sampling):
+            pred = read_tfrecord(tmp_path + "/sample_"+str(i))
+            sample_mis, count = sample_misspecification(pred, mean)
+            total_count += count
+            total_misspecification += sample_mis
+        total_misspecification /= float(total_count)
+        try:
+            total_misspecification = tf.math.sqrt(tf.cast(total_misspecification))
+        except:
+            total_misspecification = math.sqrt(float(total_misspecification))
+        shutil.rmtree(tmp_path)
+        return mean, total_misspecification
+
+    def mc_predict(self, X, return_all=False):
+        if return_all:
+            return self.mc_predict_with_sample(X)
+        else:
+            out = self.mc_predict_without_sample(X)
+            return None, out[0], out[1]
+    
