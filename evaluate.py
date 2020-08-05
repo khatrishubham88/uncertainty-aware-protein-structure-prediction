@@ -22,13 +22,12 @@ params = {
     "minimum_bin_val": 2,  # starting bin size
     "maximum_bin_val": 22,  # largest bin size
     "num_bins": 64,  # num of bins to use
-    "batch_size": 8,  # batch size for training and evaluation
+    "batch_size": 1,  # batch size for training and evaluation
     "modelling_group": 5  # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
 }
 
 
 def evaluate(testdata_path, model_path, category):
-
     testdata_path = glob.glob(testdata_path + '/*')
     params["modelling_group"] = int(category)
     print('Setting model architecture...')
@@ -56,7 +55,8 @@ def evaluate(testdata_path, model_path, category):
             padded_dist_map = pad_feature2(dist_map, params["crop_size"], params["padding_value"], padding_size, 2)
             padded_mask = pad_feature2(ter_mask, params["crop_size"], params["padding_value"], padding_size, 2)
             crops = create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask,
-                                           params["crop_size"], params["crop_size"])
+                                           params["crop_size"], params["crop_size"], params["minimum_bin_val"],
+                                           params["maximum_bin_val"], params["num_bins"])
             for crop in crops:
                 X.append(crop[0])  # batch[0] of type eager tensor
                 y.append(crop[1])  # batch[1] of type nd-array

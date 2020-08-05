@@ -1,4 +1,4 @@
-from network_sparse import ResNetV2
+from network import ResNetV2
 from dataprovider import DataGenerator
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -50,7 +50,7 @@ def plotter(testdata_path, modelling_group, model_path, result_dir):
     mask = []
     print(testdata_path)
     for primary, evolutionary, tertiary, ter_mask in parse_test_dataset(testdata_path, modelling_group):
-        if (primary != None):
+        if primary is not None:
             primary_2D = widen_seq(primary)
             pssm = widen_pssm(evolutionary)
             dist_map = calc_pairwise_distances(tertiary)

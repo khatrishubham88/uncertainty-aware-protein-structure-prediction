@@ -26,7 +26,7 @@ params = {
     "minimum_bin_val": 2,  # starting bin size
     "maximum_bin_val": 22,  # largest bin size
     "num_bins": 64,  # num of bins to use
-    "batch_size": 16,  # batch size for training and evaluation
+    "batch_size": 1,  # batch size for training and evaluation
     "modelling_group": 5  # 1: TBM, 2: FM, 3:TBM-hard, 4:TBM/TBM-hard, 5: all
 }
 
