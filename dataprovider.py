@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from utils import expand_dim, calc_pairwise_distances, load_npy_binary, output_to_distancemaps
-from utils import masked_categorical_cross_entropy, random_index
+from utils import random_index
 from readData_from_TFRec import parse_tfexample, create_crop2, parse_val_tfexample, parse_test_tfexample
 import glob
 import copy
