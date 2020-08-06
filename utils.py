@@ -103,7 +103,7 @@ def distance_map_plotter(fname, y_true, y_pred, mask, title="Distancemap Plots")
     # plt.close("all")
 
 
-def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title="Distancemap Plots"):
+def mc_distance_map_plotter(fname, y_true, y_pred_mean, y_pred_best, mask, title="Distancemap Plots"):
     plt.figure(figsize=(10, 10))
     plt.subplot(221)
     plt.title("Ground Truth")
@@ -220,34 +220,11 @@ def load_npy_binary(path):
     return np.load(path)
 
 
-def masked_categorical_cross_entropy():
-    def loss(y_true, y_pred):
-        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-        loss = tf.keras.losses.CategoricalCrossentropy()
-        l = loss(y_true, y_pred)
-
-        return l
-
-    return loss
-
-
-def masked_categorical_cross_entropy_test():
-    # mask = K.variable()
-    strategy = tf.distribute.MirroredStrategy()
-    def loss(y_true, y_pred):
-        with strategy.scope():
-            kerasloss = tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
-            y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-            l = kerasloss(y_true, y_pred)
-        return l
-
-    return loss
-
-
 def expand_dim(low_dim_tensor, axis=0):
     """Stacks a list of rank `R` tensors into a rank `R+1` tensor.
       Args:
         low_dim_tensor: List of tensors.
+        axis:           Index of axis where dimension should be added.
       Returns:
         A tensor.
       """
@@ -256,6 +233,26 @@ def expand_dim(low_dim_tensor, axis=0):
 
 def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, crop_size, stride, min_bin_val,
                            max_bin_val, num_bins):
+    """Given the padded primary and evolutionary features as well as the padded ground
+    truth and mask, this function creates batches of testing data for the test pipeline.
+      Args:
+         padded_primary:  Numpy array containing the padded primary information for the
+                          input to the network.
+         padded_evol:     Numpy array containing the padded evolutionary information for
+                          the input to the network.
+         padded_dist_map: Numpy array containing the padded ground truth as distance map.
+         padded_mask:     Numpy array containing the padded masking tensor.
+         crop_size:       Number of amino acids in a crop as integer.
+         stride:          Stride value for cropping as integer.
+         min_bin_val:     Lower bound of distance range [Angstrom] for distance prediction
+                          as integer (here: 2).
+         max_bin_val:     Upper bound of distance range [Angstrom] for distance prediction
+                          as integer (here: 22).
+         num_bins:        Number of bins used for discretization of distance range as
+                          integer (here: 64).
+      Returns:
+         List of tuples containing input crop, ground truth crop and masking tensor crop.
+    """
     batches = []
     for x in range(0, padded_primary.shape[0] - crop_size, stride):
         for y in range(0, padded_primary.shape[0] - crop_size, stride):
@@ -471,9 +468,11 @@ def contact_map_from_distogram(y_predict):
 
     return contact_maps
 
+
 def prob_to_class(y_pred, num_classes):
     y_pred = tf.convert_to_tensor(y_pred, dtype=tf.float32)
     return tf.one_hot(tf.math.argmax(y_pred, axis=-1), num_classes)
+
 
 def entropy_func(y_predict):
     """Calculates entropy on a data of shape (#samples, 64, 64, 64)

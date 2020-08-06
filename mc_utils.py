@@ -1,12 +1,15 @@
-import tensorflow as tf
 import math
 import numpy as np
+import tensorflow as tf
+
 from tensorflow.python.ops import array_ops
 from utils import prob_to_class
+
 
 def save_tfrecord(y, fname):
     serialized_tensor = tf.io.serialize_tensor(y)
     tf.io.write_file(fname+".tfrecord", serialized_tensor)
+
 
 def read_tfrecord(fname):
     read_data = tf.io.read_file(fname+".tfrecord")

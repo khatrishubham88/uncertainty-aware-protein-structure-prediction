@@ -23,13 +23,14 @@ kernel_init = "he_normal"
 
 def ts_evaluate(X, y, mask, model_path, temperature_path, params, plot=False, result_dir=None):
     """Evaluates a model before and after Temperature Scaling for a certain
-       category in a test set.
-          Args:
-            testdata_path: Path to folder containing test data.
-            model_path: Path to model weights.
-            temperature_path: Path to Numpy binary containing learned temperature.
-            category: 1. TBM, 2. FM, 3. TBM-Hard, 4. TBM/TBM-Hard, 5. All
-        """
+    category in a test set.
+      Args:
+        X: Input data as TensorFlow tensor.
+        y: Ground truth as Numpy array.
+        mask: Masking tensor as Numpy array.
+        model_path: String containing path to model weights.
+        temperature_path: Path to Numpy binary containing learned temperature.
+    """
 
     print('Begin model evaluation...')
 

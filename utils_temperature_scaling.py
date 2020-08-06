@@ -90,6 +90,9 @@ def get_bin_info(conf, pred, true, mask, bin_size=0.1):
       Returns:
         Returns lists containing the mean accuracy, confidence and number
         of samples for each bin.
+
+    Inspired from:
+    https://github.com/markus93/NN_calibration/blob/master/scripts/calibration/cal_methods.py
     """
     upper_bounds = np.arange(bin_size, 1 + bin_size, bin_size)
 
@@ -120,6 +123,9 @@ def compute_accuracy_bin(conf_thresh_lower, conf_thresh_upper, conf, pred, true,
       Returns:
         Returns the average accuracy, confidence and number of samples in
         respective bin.
+
+    Inspired from:
+    https://github.com/markus93/NN_calibration/blob/master/scripts/calibration/cal_methods.py
     """
     filtered_tuples = [x for x in zip(pred, true, conf, mask) if
                        conf_thresh_lower < x[2] <= conf_thresh_upper and x[3] == 1]
@@ -146,6 +152,9 @@ def rel_diagram_sub(accs, confs, ax, n_bins=10, name="Reliability Diagram", xnam
         name: Plot title.
         xname: Label for x-axis.
         yname: Label for y-axis.
+
+    Inspired from:
+    https://github.com/markus93/NN_calibration/blob/master/scripts/calibration/Reliability%20Diagram.ipynb
     """
     acc_conf = np.column_stack([accs, confs])
     acc_conf.sort(axis=1)
@@ -189,6 +198,9 @@ def expected_calibration_error(conf, pred, true, mask, bin_size=0.1):
               Pre-defined value of 0.1 yields 10 bins.
       Returns:
         Returns the Expected Calibration Error as float.
+
+    Inspired from:
+    https://github.com/markus93/NN_calibration/blob/master/scripts/calibration/cal_methods.py
     """
     upper_bounds = np.arange(bin_size, 1 + bin_size, bin_size)  # Get bounds of bins
 
@@ -213,6 +225,9 @@ def predict_with_temperature(logits, temp=None, training=True):
       Returns:
         Returns the output of the network after applying the
         temperature and softmax activation.
+
+    Inspired from:
+    https://github.com/markus93/NN_calibration/blob/master/scripts/calibration/cal_methods.py
     """
     shape = logits.shape
     logits = np.reshape(logits, (-1, 64))
@@ -240,6 +255,9 @@ def calibrate_temperature(y_pred, y_true, mask, temp=tf.Variable(tf.ones(shape=(
         lr: Learning rate.
       Returns:
         Returns lists containing the loss history and temperatures.
+
+    Inspired from:
+    https://github.com/cerlymarco/MEDIUM_NoteBook/blob/master/NeuralNet_Calibration/NeuralNet_Calibration.ipynb
     """
     history = []
     optimizer = Adam(learning_rate=lr)

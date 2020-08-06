@@ -1,4 +1,8 @@
 from network import ResNetV2
+<<<<<<< HEAD
+=======
+from dataprovider import DataGenerator
+>>>>>>> 4584528ae49dc4a90fc499fdf3a3dbcae92fbeb7
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow.keras.backend as K

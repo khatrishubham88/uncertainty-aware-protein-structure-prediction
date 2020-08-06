@@ -19,7 +19,16 @@ sys.setrecursionlimit(10000)
 
 
 def evaluate(X, y, mask, model_path, params, plot=False, result_dir=None):
-
+    """Evaluates a model for a certain category in a test set.
+      Args:
+        X: Input data as TensorFlow tensor.
+        y: Ground truth as Numpy array.
+        mask: Masking tensor as Numpy array.
+        model_path: String containing path to model weights.
+        params: Dictionary containing parameters for the data provider.
+        plot: Boolean to enable plotting
+        result_dir: path to store the plots
+    """
     print('Setting model architecture...')
 
     model_logits = model_with_logits_output(inp_channel=41, output_channels=params["num_bins"],
@@ -28,7 +37,7 @@ def evaluate(X, y, mask, model_path, params, plot=False, result_dir=None):
                                             dropout_rate=0.1, reg_strength=1e-4, kernel_initializer="he_normal")
 
     model_logits.load_weights(model_path).expect_partial()
-    
+
     print('Begin model evaluation...')
 
     """
@@ -62,7 +71,7 @@ def evaluate(X, y, mask, model_path, params, plot=False, result_dir=None):
 
     entropy = entropy_func(y_predict)
     print('Prediction Entropy:', entropy)
-    print("Model Prediction Uncertainity: {}".format(model_noise))
+    print("Model Prediction Uncertainty: {}".format(model_noise))
     print('ECE: ', ece)
     if plot:
         plotter(y_predict, y, mask, params, result_dir)
@@ -73,8 +82,9 @@ if __name__ == "__main__":
     Example execution:
         python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/unweighted_model/custom_model_weights_epochs_30_batch_size_16" --category 5
 
-        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/clipped_weights_epoch24/chkpnt" --category 2 --ts --temperature_path "P:/proteinfolding_alphafold/temperatures/temperature_weighted.npy"
+        python evaluate.py --testdata_path "P:/casp7/casp7/testing" --model_path "P:/proteinfolding_alphafold/weighted_model/chkpnt" --category 2 --ts --temperature_path "P:/proteinfolding_alphafold/temperatures/temperature_weighted.npy"
     """
+
     params = {
     "crop_size": 64,  # this will be the  LxL window size
     "features": "pri-evo",  # this will decide the number of channel, with primary 20, pri-evo 41

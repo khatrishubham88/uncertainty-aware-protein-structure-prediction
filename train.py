@@ -22,6 +22,14 @@ sys.setrecursionlimit(100000)
 
 
 def train(traindata_path, valdata_path, val_thinning, classweight_path=None, compute_cw=False):
+    """Trains a distance prediction model given a training and validation
+    set.
+      Args:
+        traindata_path: Path to folder containing training data as string.
+        valdata_path: Path to validation data as string.
+        classweight_path: Path to pickle file containing class weights as string.
+        val_thinning: Thinning to be used for validation as integer.
+    """
     train_path = glob.glob(traindata_path)
     val_path = glob.glob(valdata_path)
     class_weights = classweight_path
