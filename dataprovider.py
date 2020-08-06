@@ -319,12 +319,12 @@ class DataGenerator(object):
             primary, evolutionary, tertiary, ter_mask = parse_val_tfexample(data, self.validation_thinning_threshold)
             if all(ret is not None for ret in [primary, evolutionary, tertiary, ter_mask]):
                 c = counter
-                if counter < self.approx_val_sample_per_epoch:                
+                if counter < self.approx_val_sample_per_epoch:
                     with self.lock:
                         counter += 1
                 else:
                     with self.lock:
-                        counter = 0 
+                        counter = 0
                 if self.val_mask[c]:
                     transformed_batch = DataGenerator.generator_transform(primary, evolutionary, tertiary, ter_mask,
                                                                         features=self.features,
@@ -340,7 +340,7 @@ class DataGenerator(object):
                     yield transformed_batch
                 else:
                     continue
-                
+
             else:
                 continue
 
@@ -369,145 +369,3 @@ class DataGenerator(object):
         random_crop = create_crop2(primary, evolutionary, dist_map, tertiary_mask, features, index, crop_size,
                                    padding_value, padding_size, minimum_bin_val, maximum_bin_val, num_bins)
         return random_crop
-
-
-# Used for minor testing of data provider
-if __name__=="__main__":
-    path = glob.glob("../proteinnet/data/casp7/training/100/*")
-    val_path = glob.glob("../proteinnet/data/casp7/validation/*")
-    params = {
-    "crop_size":64, # this is the LxL
-    "datasize":None,
-    "features":"primary", # this will decide the number of channel, with primary 20, pri-evo 41
-    "padding_value":0, # value to use for padding the sequences, mask is padded by 0 only
-    "minimum_bin_val":2, # starting bin size
-    "maximum_bin_val":22, # largest bin size
-    "num_bins":64,         # num of bins to use
-    "batch_size":8,       # batch size for training, check if this is needed here or should be done directly in fit?
-    "shuffle":False,        # if wanna shuffle the data, this is not necessary
-    "shuffle_buffer_size":None,     # if shuffle is on size of shuffle buffer, if None then =batch_size
-    "random_crop":True,         # if cropping should be random, this has to be implemented later
-    "val_random_crop":True,
-    "flattening":True,
-    # "take":8,
-    "epochs":3,
-    "prefetch": False,
-
-    "val_path": val_path,
-    "validation_thinning_threshold": 50,
-    "training_validation_ratio": 0.2,
-    # "experimental_val_take": 2
-    }
-    # dataprovider = DataGenerator(path, **params)
-    # validation_data = dataprovider.get_validation_dataset()
-    # validation_steps = dataprovider.get_validation_length()
-    # print("validation set size = {}".format(validation_steps))
-    # stored_data = []
-    # start = 30
-    # end = 35
-    # num_of_elems = 0
-
-    # for i in range(params["epochs"]):
-    #     count = -1
-    #     for idx, (x, y, mask) in enumerate(validation_data):
-    #         print("batch {}!".format(idx))
-    #         if i<1 and idx >= start and idx < end:
-    #             print("Storing!!")
-    #             stored_data.append(x)
-    #         elif i>0 and idx >= start and idx < end:
-    #             count += 1
-    #             print("Comparing!!")
-    #             if np.array_equal(x.numpy(), stored_data[count]):
-    #                 print("Success for array = {}, for epoch ={}".format(count, i))
-    #         else:
-    #             continue
-    #     num_of_elems = len(stored_data)
-    dataprovider = DataGenerator(path, **params)
-    validation_data = dataprovider.get_validation_dataset()
-    validation_steps = dataprovider.get_validation_length()
-    print("validation set size = {}".format(validation_steps))
-    stored_data = []
-    start = 5
-    end = 10
-    num_of_elems = 0
-    for idx, (x, y, mask) in enumerate(validation_data):
-        print("batch {}!".format(idx))
-        if idx >= start and idx < end:
-            print("Storing!!")
-            stored_data.append(x.numpy())
-        elif idx > end:
-            continue
-    print("remaining element in the index array = {}".format(dataprovider.idx_iterator.shape[0]))
-    del dataprovider
-    del validation_data
-
-    dataprovider = DataGenerator(path, **params)
-    validation_data = dataprovider.get_validation_dataset()
-    validation_steps = dataprovider.get_validation_length()
-    print("validation set size = {}".format(validation_steps))
-    num_of_elems = 0
-    count = -1
-    for idx, (x, y, mask) in enumerate(validation_data):
-        print("batch {}!".format(idx))
-        if idx >= start and idx < end:
-            count += 1
-            print("Testing!! \n x.numpy().shape = {}, stored_data[count].shape = {}".format(x.numpy().shape, stored_data[count].shape))
-            if np.array_equal(x.numpy(), stored_data[count]):
-                print("Success for array = {}".format(count))
-        elif idx > end:
-            break
-
-    # num_data_points = 0
-    # print(len(dataprovider))
-    # tensors = []
-    # for n, count in enumerate(dataprovider):
-    #     # print(len(count))
-    #     # print(count[0].shape)
-    #     # print(count[1].shape)
-    #     # print(count[2].shape)
-    #     if n>=params["take"]:
-    #         # print("printing for element n = {}, and tensor = {}".format(n%params["take"], tf.math.equal(tensors[n%params["take"]], count[0])))
-    #         mismatch = True
-    #         num_mismatch = 0
-    #         for i in range(count[0].shape[0]):
-    #             for j in range(count[0].shape[1]):
-    #                 for k in range(count[0].shape[2]):
-    #                     for l in range(count[0].shape[3]):
-    #                         # print(tf.math.equal(tensors[i-params["take"]], count[0]).numpy()[i,j,k,l] is False)
-    #                         if tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
-    #                             pass
-    #                         elif not tf.math.equal(tensors[n%params["take"]], count[0]).numpy()[i,j,k,l]:
-    #                             num_mismatch +=1
-    #                             if mismatch:
-    #                                 print("old val = {}, new val = {}, at i = {}, j = {}, k = {}, l = {}".format(tensors[n%params["take"]][i,j,k,l], count[0][i,j,k,l], i, j, k, l))
-    #                                 mismatch = False
-    #         print("Total mismatch for element n = {} => {}".format(n%params["take"], num_mismatch))
-    #     else:
-    #         tensors.append(count[0])
-    #     # print(count[2].shape)
-    #     # sh = count[1].shape[0:-1]
-    #     # print(sh)
-    #     # reshaped_test = tf.reshape(count[2], shape=sh)
-    #     # print(reshaped_test)
-    #     num_data_points += 1
-    # print(num_data_points)
-    # path = glob.glob("../../proteinnet/data/casp7/testing/*")
-    # print("Test set path = {}".format(path))
-    # raw_dataset = tf.data.TFRecordDataset(path)
-    # count_fm = 0
-    # count_tbm = 0
-    # count_tbm_hard = 0
-    # for data in raw_dataset:
-    #     primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'FM')
-    #     if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
-    #         print(primary.shape)
-    #         count_fm += 1
-    #     primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'TBM')
-    #     if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
-    #         print(primary.shape)
-    #         count_tbm += 1
-    #     primary, evolutionary, tertiary, ter_mask = parse_test_tfexample(data, 'TBM-hard')
-    #     if all(res is not None for res in [primary, evolutionary, tertiary, ter_mask]):
-    #         print(primary.shape)
-    #         count_tbm_hard += 1
-    # print("Number of FM Models = {}, TBM models = {}, TBM-Hard model = {}".format(count_fm, count_tbm, count_tbm_hard))

@@ -8,13 +8,13 @@ from utils_temperature_scaling import *
 
 def learn_temperature(traindata_path, valdata_path, model_path, epochs, iterations_per_batch, lr):
     """Learns the temperature for given validation set and model weights.
-          Args:
-            traindata_path: Path to folder containing training data.
-            valdata_path: Path to validation data.
-            model_path: Path to model weights.
-            epochs: Number of sweeps through validation set to learn temperature.
-            iterations_per_batch: Number of optimization steps on each batch.
-        """
+      Args:
+         traindata_path: Path to folder containing training data.
+         valdata_path: Path to validation data.
+         model_path: Path to model weights.
+         epochs: Number of sweeps through validation set to learn temperature.
+         iterations_per_batch: Number of optimization steps on each batch.
+    """
     train_path = glob.glob(traindata_path)
     val_path = glob.glob(valdata_path)
 
@@ -129,7 +129,7 @@ def learn_temperature(traindata_path, valdata_path, model_path, epochs, iteratio
     temperatures_dir = "temperatures"
     if os.path.isdir(temperatures_dir) is False:
         os.mkdir(temperatures_dir)
-    name_temperature_binary_file = temperatures_dir + "/" + "temperatures_unclipped" # 1.3075706
+    name_temperature_binary_file = temperatures_dir + "/" + "temperature"
     np.save(name_temperature_binary_file, temperatures[-1])
 
 

@@ -103,7 +103,7 @@ def distance_map_plotter(fname, y_true, y_pred, mask, title="Distancemap Plots")
     # plt.close("all")
 
 
-def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title="Distancemap Plots"):
+def mc_distance_map_plotter(fname, y_true, y_pred_mean, y_pred_best, mask, title="Distancemap Plots"):
     plt.figure(figsize=(10, 10))
     plt.subplot(221)
     plt.title("Ground Truth")
@@ -172,6 +172,43 @@ def mc_distance_map_plotter(fname, y_true, y_pred_mean,y_pred_best, mask, title=
     plt.axis('off')
     plt.savefig(fname)
 
+def get_class_weights(dataset, num_steps, channels, path=None):
+  cw={}
+  count = 0
+  batch_sum = tf.zeros(channels)
+  # find total occurance for each class
+  for i, (_, y,_) in enumerate(dataset):
+    batch_sum += tf.math.reduce_sum(y, axis=list(range(len(y.shape)-1)))
+    count += np.prod(y.shape[:-1])
+    if i == num_steps:
+      break
+  
+  # check non zero minimum occurance to deal with case of 0 occurences of some class
+  nnz_mask = tf.math.greater(batch_sum, 0).numpy()
+  zero_mask = tf.math.logical_not(nnz_mask)
+  nnz_min_val =  tf.math.reduce_min(batch_sum[nnz_mask]).numpy()
+  batch_sum = tf.where(zero_mask, x=nnz_min_val, y=batch_sum) # replacing 0 with minimum non 0 occurence
+  # increment the count to account for correction and have sum of probability = 1 condition
+  count += int((tf.math.reduce_sum(tf.cast(zero_mask, dtype=tf.int32)).numpy())*nnz_min_val)
+  
+  # biased probablities
+  batch_sum /= count
+  # sanctity check
+  if float(tf.math.reduce_sum(batch_sum).numpy()) - 1.0 > 1e-12:
+    raise ValueError("Sum of probability is not 1.0 check the input arrays!")
+  
+  weights = (tf.math.reciprocal(batch_sum)*(1.0/float(batch_sum.shape[0]))).numpy()
+  # normalization factor
+  min_val = float(tf.math.reduce_min(weights).numpy())
+  
+  for i in range(channels):
+    cw[i] = float(weights[i])/min_val
+  
+  if path is not None:
+      with open(path, 'wb') as handle:
+          pickle.dump(cw, handle, protocol=pickle.HIGHEST_PROTOCOL)
+  
+  return cw
 
 def load_npy_binary(path):
     """Loads in a Numpy binary.
@@ -183,38 +220,51 @@ def load_npy_binary(path):
     return np.load(path)
 
 
-def masked_categorical_cross_entropy():
-    def loss(y_true, y_pred):
-        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-        loss = tf.keras.losses.CategoricalCrossentropy()
-        l = loss(y_true, y_pred)
-
-        return l
-
-    return loss
-
-
-def masked_categorical_cross_entropy_test():
-    # mask = K.variable()
-    strategy = tf.distribute.MirroredStrategy()
-    def loss(y_true, y_pred):
-        with strategy.scope():
-            kerasloss = tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
-            y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-            l = kerasloss(y_true, y_pred)
-        return l
-
-    return loss
-
-
 def expand_dim(low_dim_tensor, axis=0):
     """Stacks a list of rank `R` tensors into a rank `R+1` tensor.
       Args:
         low_dim_tensor: List of tensors.
+        axis:           Index of axis where dimension should be added.
       Returns:
         A tensor.
       """
     return K.stack(low_dim_tensor, axis=axis)
+
+
+def create_protein_batches(padded_primary, padded_evol, padded_dist_map, padded_mask, crop_size, stride, min_bin_val,
+                           max_bin_val, num_bins):
+    """Given the padded primary and evolutionary features as well as the padded ground
+    truth and mask, this function creates batches of testing data for the test pipeline.
+      Args:
+         padded_primary:  Numpy array containing the padded primary information for the
+                          input to the network.
+         padded_evol:     Numpy array containing the padded evolutionary information for
+                          the input to the network.
+         padded_dist_map: Numpy array containing the padded ground truth as distance map.
+         padded_mask:     Numpy array containing the padded masking tensor.
+         crop_size:       Number of amino acids in a crop as integer.
+         stride:          Stride value for cropping as integer.
+         min_bin_val:     Lower bound of distance range [Angstrom] for distance prediction
+                          as integer (here: 2).
+         max_bin_val:     Upper bound of distance range [Angstrom] for distance prediction
+                          as integer (here: 22).
+         num_bins:        Number of bins used for discretization of distance range as
+                          integer (here: 64).
+      Returns:
+         List of tuples containing input crop, ground truth crop and masking tensor crop.
+    """
+    batches = []
+    for x in range(0, padded_primary.shape[0] - crop_size, stride):
+        for y in range(0, padded_primary.shape[0] - crop_size, stride):
+            primary_2D_crop = padded_primary[x:x + crop_size, y:y + crop_size, :]
+            pssm_crop = padded_evol[x:x + crop_size, y:y + crop_size, :]
+            pri_evol_crop = tf.concat([primary_2D_crop, pssm_crop], axis=2)
+            tertiary_crop = padded_dist_map[x:x + crop_size, y:y + crop_size]
+            tertiary_crop = to_distogram(tertiary_crop, min_bin_val, max_bin_val, num_bins)
+            mask_crop = padded_mask[x:x + crop_size, y:y + crop_size]
+            batches.append((pri_evol_crop, tertiary_crop, mask_crop))
+
+    return batches
 
 
 def output_to_distancemaps(output, min_angstrom, max_angstrom, num_bins):
@@ -266,46 +316,6 @@ def output_to_distogram(output, min_angstrom, max_angstrom, num_bins):
         distance_maps = bins[values]
 
     return distance_maps
-
-
-def pad_tensor(tensor, shape):
-    if isinstance(shape, int):
-        shape = tuple([shape])
-    else:
-        shape = tuple(shape)
-    dim = len(shape)
-    padded_tensor = np.zeros(shape)
-    if dim == 1:
-        padded_tensor[0:tensor.shape[0]] = tensor
-    elif dim == 2:
-        padded_tensor[0:tensor.shape[0], 0:tensor.shape[0]] = tensor
-
-    return padded_tensor
-
-
-def pad_primary(tensor, shape):
-    #AA space is betwen 0-19 --> paddings have Id 20
-    curr_length = tensor.shape[0]
-    padded_tensor = np.full(shape, 20)
-    padded_tensor[0:curr_length] = tensor
-
-    return padded_tensor
-
-
-def pad_tertiary(tensor, shape):
-    curr_length = tensor.shape[0]
-    padded_tensor = np.zeros(shape=shape)
-    padded_tensor[0:curr_length, 0:curr_length] = tensor
-
-    return padded_tensor
-
-
-def pad_mask(tensor, shape):
-    curr_length = tensor.shape[0]
-    padded_tensor = np.zeros(shape=shape)
-    padded_tensor[0:curr_length, 0:curr_length] = tensor
-
-    return padded_tensor
 
 
 def calc_distance(aa1, aa2):
@@ -457,6 +467,11 @@ def contact_map_from_distogram(y_predict):
                 contact_maps[sample][x,y] = 1 if density > 0.5 else 0
 
     return contact_maps
+
+
+def prob_to_class(y_pred, num_classes):
+    y_pred = tf.convert_to_tensor(y_pred, dtype=tf.float32)
+    return tf.one_hot(tf.math.argmax(y_pred, axis=-1), num_classes)
 
 
 def entropy_func(y_predict):
