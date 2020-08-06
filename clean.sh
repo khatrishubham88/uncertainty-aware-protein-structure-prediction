@@ -12,3 +12,4 @@ rm -fr result.png
 rm -fr .idea/
 rm -fr .ipynb_*
 rm -fr mcd.*
+rm -fr .mcd_tmp_files
