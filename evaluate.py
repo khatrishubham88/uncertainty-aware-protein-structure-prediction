@@ -53,7 +53,7 @@ def evaluate(X, y, mask, model_path, params, plot=False, result_dir=None):
     print('Contact map based Recall: ', total_recall)
     print('Contact map based F1_Score: ', f1)
 
-    accuracy, precision, recall, f1, cm = distogram_metrics(y, y_predict, mask, params['minimum_bin_val'],
+    accuracy, precision, recall, f1, _ = distogram_metrics(y, y_predict, mask, params['minimum_bin_val'],
                                                             params['maximum_bin_val'], params['num_bins'])
     print('Distogram based Accuracy:', accuracy)
     print('Distogram based Precision:', precision)

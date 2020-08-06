@@ -15,8 +15,6 @@ np.set_printoptions(threshold=np.inf)
 sys.setrecursionlimit(10000)
 
 def mc_evaluate(X, y, mask, model_path, params, sampling, plot=False, result_dir=None):
-    # testdata_path = glob.glob(testdata_path + '/*')
-    # params["modelling_group"] = int(category)
     print('Setting model architecture...')
 
     model = ResNetV2(input_channels=41, output_channels=params["num_bins"], num_blocks=[28], num_channels=[64],
@@ -29,7 +27,7 @@ def mc_evaluate(X, y, mask, model_path, params, sampling, plot=False, result_dir
     """
     Begin model evaluation
     """
-    _, mean_predict, mis_spec = model.mc_predict(X)
+    _, mean_predict, mis_spec = model.mc_predict(X, mask=mask)
     
     del model
     
@@ -42,7 +40,7 @@ def mc_evaluate(X, y, mask, model_path, params, sampling, plot=False, result_dir
     model.load_weights(model_path).expect_partial()
     
     y_predict = model.predict(X, verbose=1, batch_size=params["batch_size"])
-    model_noise = total_model_noise(y, y_predict, params["num_bins"])
+    model_noise = total_model_noise(y, y_predict, params["num_bins"], mask=mask)
     
     # print("model_noise = {}, mis_spec = {}, type_mis_spec = {}, type_model_noise = {}".format(model_noise, mis_spec, type(mis_spec), type(model_noise)))
     model_uq = math.sqrt(model_noise**2 + mis_spec**2)
@@ -58,7 +56,11 @@ def mc_evaluate(X, y, mask, model_path, params, sampling, plot=False, result_dir
 
 
     print('Prediction Entropy with MC:', entropy)
+    
     print("Model Prediction Uncertainity: {}".format(model_uq))
+    print("Model misspecification: {}".format(mis_spec))
+    print("Model Noise: {}".format(model_noise))
+    
     _, cm_accuracy = accuracy_metric(y, mean_predict, mask)
     _, cm_precision = precision_metric(y, mean_predict, mask)
     _, cm_recall = recall_metric(y, mean_predict, mask)

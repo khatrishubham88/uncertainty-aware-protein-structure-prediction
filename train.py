@@ -21,14 +21,17 @@ sys.setrecursionlimit(100000)
 # tf.autograph.set_verbosity(0)
 
 
-def train(traindata_path, valdata_path, classweight_path, val_thinning):
+def train(traindata_path, valdata_path, val_thinning, classweight_path=None, compute_cw=False):
     train_path = glob.glob(traindata_path)
     val_path = glob.glob(valdata_path)
     class_weights = classweight_path
     val_thinning = int(val_thinning)
 
-    with open(class_weights, 'rb') as handle:
-        cws = pickle.load(handle)
+    if classweight_path is not None:
+        with open(class_weights, 'rb') as handle:
+            cws = pickle.load(handle)
+    else:
+        cws = None
 
     params = {
     "crop_size":64, # this is the LxL
@@ -78,6 +81,17 @@ def train(traindata_path, valdata_path, classweight_path, val_thinning):
         val_result_dir = result_dir + "/val_data"
         if os.path.isdir(val_result_dir) is False:
             os.mkdir(val_result_dir)
+    
+    if compute_cw:
+        temp_pipeline = DataGenerator(train_path, **params)
+        if params.get("val_path", None) is not None:
+            in_data = temp_pipeline.get_validation_dataset()
+            in_data_steps = temp_pipeline.get_validation_length()
+        else:
+            in_data = temp_pipeline
+            in_data_steps = len(temp_pipeline)
+        cws = get_class_weights(in_data, in_data_steps, params["num_bins"])
+    
     # instantiate data provider
     dataprovider = DataGenerator(train_path, **params)
 
@@ -208,6 +222,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Training.')
     parser.add_argument("--traindata_path", help="Path to train set e.g. /path/to/train")
     parser.add_argument("--valdata_path", help="Path to validation set e.g. /path/to/val")
+    parser.add_argument("--compute_class_weights", help="Whether to compute class weights from the validation set", action='store_true')
     parser.add_argument("--classweight_path", help="Path to model weights e.g. /path/to/class_weights.pickle")
     parser.add_argument("--val_thinning", help="Validation thinning equal to 30, 50, 70, 90, 95 or 100")
 
@@ -217,5 +232,4 @@ if __name__ == "__main__":
     classweight_path = args.classweight_path
     val_thinning = args.val_thinning
 
-    train(traindata_path=traindata_path, valdata_path=valdata_path, classweight_path=classweight_path,
-          val_thinning=val_thinning)
+    train(traindata_path=traindata_path, valdata_path=valdata_path, val_thinning=val_thinning, classweight_path=classweight_path, compute_cw=args.compute_class_weights)
