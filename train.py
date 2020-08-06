@@ -99,6 +99,8 @@ def train(traindata_path, valdata_path, val_thinning, classweight_path=None, com
             in_data = temp_pipeline
             in_data_steps = len(temp_pipeline)
         cws = get_class_weights(in_data, in_data_steps, params["num_bins"])
+        del temp_pipeline
+        del in_data
     
     # instantiate data provider
     dataprovider = DataGenerator(train_path, **params)
