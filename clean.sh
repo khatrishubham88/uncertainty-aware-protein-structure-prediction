@@ -1,15 +1,15 @@
 #! /bin/bash
 
-rm -fr chkpnt_*
-rm -fr model_*
+rm -fr **/chkpnt_*
+rm -fr **/model_*
 rm -fr __pycache__
-rm -fr test_results
-rm -fr checkpoint
-rm -fr custom_model_weights*
-rm -fr learning_rate.png
-rm -fr loss.png
-rm -fr result.png
+rm -fr **/test_results
+rm -fr **/checkpoint
+rm -fr **/custom_model_weights*
+rm -fr **/learning_rate.png
+rm -fr **/loss.png
+rm -fr **/result.png
 rm -fr .idea/
 rm -fr .ipynb_*
-rm -fr mcd.*
-rm -fr .mcd_tmp_files
+rm -fr **/mcd.*
+rm -fr **/.mcd_tmp_files
