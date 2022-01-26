@@ -3,7 +3,9 @@ In this work, we use AlphaFold as baselin` model. However, we only focus on pred
 evolutionary features extracted from Multiple Sequence Alignments. Our model, similar to AlphaFold, predicts the distograms which are discretized distances. We only consider distances between 2 and 22 Angstroms.
 Herefore, we use a deep two-dimensional dilated convolutional network with a variable number of residual block groups. 
 Besides the accuracy of the model, it is often important to know how confident a neural network is in its prediction. However, modern neural networks tend to be poorly calibrated compared to the ones from a decade ago.
-Therefore, we use two uncertainty quantification methods to raise the uncertainty awareness of the model.
+Therefore, we use two uncertainty quantification methods to raise the uncertainty awareness of the model. <br>
+
+Our findings are reported in the [Uncertainty_aware_protein_folding.pdf](./Uncertainty_aware_protein_folding.pdf)
 
 # Model Training
 We are providing an easy to use training script called train.py with the following arguments:
